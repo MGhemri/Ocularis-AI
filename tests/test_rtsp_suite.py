@@ -116,6 +116,12 @@ class TestOcularisRTSP(unittest.TestCase):
         data = res_fake.get_json()
         self.assertIn('success', data)
 
+        # Test avec webcam locale '0'
+        res_wc = self.client.post('/api/cameras/test', json={'url': '0'})
+        self.assertEqual(res_wc.status_code, 200)
+        data_wc = res_wc.get_json()
+        self.assertIn('success', data_wc)
+
     def test_06_forensic_pages(self):
         # Dashboard principal
         res_home = self.client.get('/')
@@ -136,6 +142,26 @@ class TestOcularisRTSP(unittest.TestCase):
         res_csv = self.client.get('/api/export/csv')
         self.assertEqual(res_csv.status_code, 200)
         self.assertEqual(res_csv.mimetype, 'text/csv')
+
+    def test_07_webcam_detection_and_open(self):
+        from rtsp_manager import is_webcam_source
+        # Test identification de webcam locale intégrée (0) ou externe (1)
+        is_wc, val = is_webcam_source(0)
+        self.assertTrue(is_wc)
+        self.assertEqual(val, 0)
+
+        is_wc, val = is_webcam_source("0")
+        self.assertTrue(is_wc)
+        self.assertEqual(val, 0)
+
+        is_wc, val = is_webcam_source("1")
+        self.assertTrue(is_wc)
+        self.assertEqual(val, 1)
+
+        # Test détection d'URL RTSP
+        is_wc_rtsp, val_rtsp = is_webcam_source("rtsp://admin:pass@192.168.1.100:554/live")
+        self.assertFalse(is_wc_rtsp)
+        self.assertEqual(val_rtsp, "rtsp://admin:pass@192.168.1.100:554/live")
 
 
 if __name__ == '__main__':

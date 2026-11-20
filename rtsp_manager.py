@@ -118,29 +118,69 @@ def check_person_object_proximity(person_boxes, object_boxes, max_distance_px):
     return False
 
 
+def is_webcam_source(source):
+    """
+    Détermine si la source correspond à une webcam locale (entier ou chaîne numérique).
+    Retourne (is_webcam: bool, normalized_source: int | str).
+    """
+    try:
+        if isinstance(source, int):
+            return True, source
+        s = str(source).strip()
+        if s.isdigit():
+            return True, int(s)
+    except (ValueError, TypeError):
+        pass
+    return False, str(source).strip()
+
+
+def open_video_capture(source):
+    """
+    Ouvre une capture vidéo avec le backend adapté selon la source :
+    - Entier ou chiffres (ex: 0, 1) -> Webcam intégrée ou USB (DirectShow sous Windows)
+    - URL RTSP / HTTP ou chemin fichier -> Backend FFMPEG optimisé bufferless
+    """
+    if cv2 is None:
+        return None, False
+
+    is_webcam, source_val = is_webcam_source(source)
+
+    if is_webcam:
+        backend = cv2.CAP_DSHOW if os.name == 'nt' else cv2.CAP_ANY
+        cap = cv2.VideoCapture(source_val, backend)
+        if not cap.isOpened() and os.name == 'nt':
+            cap = cv2.VideoCapture(source_val)
+        return cap, True
+    else:
+        # Optimisation timeout et transport TCP sous FFmpeg
+        os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;tcp|timeout;4000000"
+        cap = cv2.VideoCapture(str(source_val), cv2.CAP_FFMPEG)
+        cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+        return cap, False
+
+
 def test_rtsp_connection(url: str, timeout: float = 3.5):
     """
-    Teste la connectivité d'une URL RTSP ou flux IP.
+    Teste la connectivité d'une URL RTSP, flux IP ou webcam locale.
     Retourne un dictionnaire {'success': bool, 'width': int, 'height': int, 'fps': float, 'error': str}.
     """
     if cv2 is None:
-        return {'success': False, 'error': "OpenCV (cv2) n'est pas installé dans cet environnement."}
-
-    # Support des entiers pour webcams locales (ex: '0' -> 0)
-    source = int(url) if str(url).isdigit() else str(url)
+        return {'success': False, 'error': "OpenCV (cv2) n'est pas installe dans cet environnement."}
 
     cap = None
     start_time = time.time()
     try:
-        cap = cv2.VideoCapture(source, cv2.CAP_FFMPEG)
-        cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+        cap, is_webcam = open_video_capture(url)
+        if cap is None:
+            return {'success': False, 'error': "Echec de creation du flux OpenCV."}
 
         while (time.time() - start_time) < timeout:
             if cap.isOpened():
                 ret, frame = cap.read()
                 if ret and frame is not None and frame.size > 0:
                     h, w = frame.shape[:2]
-                    fps = cap.get(cv2.CAP_PROP_FPS) or 25.0
+                    raw_fps = cap.get(cv2.CAP_PROP_FPS)
+                    fps = raw_fps if (raw_fps is not None and raw_fps > 0) else 30.0
                     cap.release()
                     return {
                         'success': True,
@@ -153,7 +193,7 @@ def test_rtsp_connection(url: str, timeout: float = 3.5):
 
         if cap:
             cap.release()
-        return {'success': False, 'error': f"Délai d'attente dépassé ({timeout}s) sans réception d'image valide."}
+        return {'success': False, 'error': f"Delai d'attente depasse ({timeout}s) sans reception d'image valide."}
     except Exception as e:
         if cap:
             try:
@@ -236,12 +276,11 @@ class RTSPStreamReader:
             cap = None
 
             try:
-                cap = cv2.VideoCapture(source, cv2.CAP_FFMPEG)
-                cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+                cap, is_webcam = open_video_capture(self.url)
 
-                if not cap.isOpened():
+                if cap is None or not cap.isOpened():
                     self.status = "RECONNECTING"
-                    self.error_message = "Échec d'ouverture du flux RTSP."
+                    self.error_message = "Echec d'ouverture du flux (camera ou webcam)."
                     time.sleep(3.0)
                     continue
 

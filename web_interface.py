@@ -556,14 +556,15 @@ HTML_TEMPLATE = """
                         </div>
                     </div>
 
-                    <!-- Presets rapides constructeurs -->
+                    <!-- Presets rapides constructeurs & Webcams -->
                     <div style="margin-bottom:16px; font-size:12px; color:#64748b; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-                        <span style="font-weight:700;">Modèles prédéfinis :</span>
-                        <button type="button" class="btn btn-outline" style="padding:4px 8px; font-size:11px;" onclick="applyPreset('dahua')">Dahua</button>
-                        <button type="button" class="btn btn-outline" style="padding:4px 8px; font-size:11px;" onclick="applyPreset('hikvision')">Hikvision</button>
-                        <button type="button" class="btn btn-outline" style="padding:4px 8px; font-size:11px;" onclick="applyPreset('uniview')">Uniview</button>
-                        <button type="button" class="btn btn-outline" style="padding:4px 8px; font-size:11px;" onclick="applyPreset('axis')">Axis</button>
-                        <button type="button" class="btn btn-outline" style="padding:4px 8px; font-size:11px;" onclick="applyPreset('webcam')">Webcam USB (0)</button>
+                        <span style="font-weight:700;">Préréglages rapides :</span>
+                        <button type="button" class="btn btn-outline" style="padding:4px 8px; font-size:11px;" onclick="applyPreset('webcam_0')">Webcam PC Intégrée (0)</button>
+                        <button type="button" class="btn btn-outline" style="padding:4px 8px; font-size:11px;" onclick="applyPreset('webcam_1')">Webcam USB Externe (1)</button>
+                        <button type="button" class="btn btn-outline" style="padding:4px 8px; font-size:11px;" onclick="applyPreset('hikvision')">RTSP Hikvision</button>
+                        <button type="button" class="btn btn-outline" style="padding:4px 8px; font-size:11px;" onclick="applyPreset('dahua')">RTSP Dahua</button>
+                        <button type="button" class="btn btn-outline" style="padding:4px 8px; font-size:11px;" onclick="applyPreset('uniview')">RTSP Uniview</button>
+                        <button type="button" class="btn btn-outline" style="padding:4px 8px; font-size:11px;" onclick="applyPreset('axis')">RTSP Axis</button>
                     </div>
 
                     <div class="form-grid">
@@ -912,7 +913,17 @@ HTML_TEMPLATE = """
 
         function applyPreset(brand) {
             const urlInput = document.getElementById('cam-url');
-            if (brand === 'dahua') {
+            const idInput = document.getElementById('cam-id');
+            const nameInput = document.getElementById('cam-name');
+            if (brand === 'webcam' || brand === 'webcam_0') {
+                urlInput.value = "0";
+                if (!idInput.value || idInput.value.startsWith('webcam') || idInput.value.startsWith('cam_')) idInput.value = "webcam_pc";
+                if (!nameInput.value || nameInput.value.startsWith('Webcam') || nameInput.value.startsWith('Caméra')) nameInput.value = "Webcam Intégrée PC";
+            } else if (brand === 'webcam_1') {
+                urlInput.value = "1";
+                if (!idInput.value || idInput.value.startsWith('webcam') || idInput.value.startsWith('cam_')) idInput.value = "webcam_usb";
+                if (!nameInput.value || nameInput.value.startsWith('Webcam') || nameInput.value.startsWith('Caméra')) nameInput.value = "Webcam USB Externe";
+            } else if (brand === 'dahua') {
                 urlInput.value = "rtsp://admin:admin123@192.168.1.100:554/cam/realmonitor?channel=1&subtype=0";
             } else if (brand === 'hikvision') {
                 urlInput.value = "rtsp://admin:admin123@192.168.1.100:554/Streaming/Channels/101";
@@ -920,8 +931,6 @@ HTML_TEMPLATE = """
                 urlInput.value = "rtsp://admin:admin123@192.168.1.100:554/unicast/c1/s0/live";
             } else if (brand === 'axis') {
                 urlInput.value = "rtsp://root:admin123@192.168.1.100:554/axis-media/media.amp";
-            } else if (brand === 'webcam') {
-                urlInput.value = "0";
             }
         }
 

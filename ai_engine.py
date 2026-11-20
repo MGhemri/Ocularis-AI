@@ -1,7 +1,7 @@
 """
-OCULARIS AI - MOTEUR D'ANALYSE FORENSIQUE (BACKEND)
-Version 1.1.0 - Grade Industriel - Optimisé GPU NVIDIA RTX / CUDA
-Détection intelligente, Multi-Object Tracking (ByteTrack) & Anti-Flooding
+OCULARIS AI - MOTEUR D'ANALYSE FORENSIQUE & SURVEILLANCE RTSP (BACKEND)
+Version 1.2.0 - Grade Industriel - Optimisé GPU NVIDIA RTX / CUDA
+Détection intelligente, Multi-Object Tracking (ByteTrack), Anti-Flooding & Caméras IP
 Système Universel d'Analyse Forensique Vidéo & Audit CCTV
 Auteur : Ghemri M (contact@connect-gm.com / +213 549 777 366)
 """
@@ -472,8 +472,46 @@ def analyze_videos():
         logger.info(f"✅ Vidéo terminée : '{v_name}' (Total frames traitées : {current_frame_id})")
 
     conn.close()
-    logger.info("🎉 TOUTES LES ANALYSES SONT TERMINÉES AVEC SUCCÈS.")
+    logger.info("🎉 TOUTES LES ANALYSES DE FICHIERS SONT TERMINÉES.")
+
+
+def run_live_rtsp():
+    """Démarre la surveillance continue des flux RTSP multi-caméras en console."""
+    logger.info("🚀 DÉMARRAGE DU MODULE DE SURVEILLANCE RTSP EN DIRECT...")
+    try:
+        from rtsp_manager import MultiCameraRTSPManager
+        manager = MultiCameraRTSPManager.get_instance()
+    except Exception as e:
+        logger.error(f"❌ Impossible d'initialiser le gestionnaire RTSP : {e}")
+        return
+
+    logger.info("📡 Surveillance active des caméras (cameras.json). Appuyez sur Ctrl+C pour arrêter.")
+    try:
+        last_report = time.time()
+        while True:
+            time.sleep(2.0)
+            now = time.time()
+            if now - last_report >= 10.0:
+                cams = manager.get_cameras_list(mask_secret=True)
+                active = [c for c in cams if c['enabled']]
+                live = [c for c in active if c['status'] == 'LIVE']
+                logger.info(f"📊 État RTSP : {len(live)}/{len(active)} flux en direct actif(s) | Total configuré : {len(cams)}")
+                for c in active:
+                    logger.info(f"   📹 [{c['id']}] {c['name']} : {c['status']} ({c['fps_actual']} FPS, {c['total_events']} alertes)")
+                last_report = now
+    except KeyboardInterrupt:
+        logger.info("🛑 Arrêt de la surveillance RTSP demandé par l'utilisateur.")
+        manager.stop_all()
 
 
 if __name__ == "__main__":
-    analyze_videos()
+    import argparse
+    parser = argparse.ArgumentParser(description="Ocularis AI - Moteur Forensique & Surveillance RTSP")
+    parser.add_argument("--live", action="store_true", help="Démarrer la surveillance continue des flux RTSP (cameras.json)")
+    parser.add_argument("--batch", action="store_true", help="Analyser uniquement les fichiers du dossier videos_source/")
+    args = parser.parse_args()
+
+    if args.live:
+        run_live_rtsp()
+    else:
+        analyze_videos()

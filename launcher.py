@@ -1,6 +1,7 @@
 """
 OCULARIS AI - LANCEUR MULTI-PROCESSUS
-Version 1.1.0 - Détection automatique de l'environnement virtuel (.venv)
+Version 1.2.0 - Forensique Vidéo & Surveillance Temps Réel RTSP
+Détection automatique de l'environnement virtuel (.venv)
 """
 
 import subprocess
@@ -15,8 +16,8 @@ def main():
     script_dir = Path(__file__).resolve().parent
 
     print("=" * 60)
-    print("🚀 DÉMARRAGE DU SYSTÈME OCULARIS AI v1.1.0")
-    print("   Système Universel d'Analyse Forensique Vidéo")
+    print("🚀 DÉMARRAGE DU SYSTÈME OCULARIS AI v1.2.0")
+    print("   Système Universel d'Analyse Forensique & Surveillance RTSP")
     print("=" * 60)
 
     # Détection automatique de l'environnement virtuel .venv

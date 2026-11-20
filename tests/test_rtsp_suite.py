@@ -1,0 +1,142 @@
+"""
+OCULARIS AI - SUITE DE VALIDATION RTSP & FORENSIQUE V1.2.0
+"""
+
+import unittest
+import json
+import os
+import sqlite3
+import tempfile
+from pathlib import Path
+
+from rtsp_manager import (
+    mask_rtsp_password,
+    unmask_rtsp_password,
+    check_person_object_proximity,
+    create_placeholder_frame,
+    test_rtsp_connection,
+    MultiCameraRTSPManager
+)
+from web_interface import app, ensure_db
+
+
+class TestOcularisRTSP(unittest.TestCase):
+
+    def setUp(self):
+        self.client = app.test_client()
+        ensure_db()
+
+    def test_01_password_masking(self):
+        url = "rtsp://admin:SecretPass123@192.168.1.100:554/live"
+        masked = mask_rtsp_password(url)
+        self.assertEqual(masked, "rtsp://admin:******@192.168.1.100:554/live")
+
+        # Unmasking test
+        unmasked = unmask_rtsp_password("rtsp://admin:******@192.168.1.100:554/live", url)
+        self.assertEqual(unmasked, url)
+
+    def test_02_proximity_detection(self):
+        # Personne [100, 100, 200, 300]
+        # Objet [180, 150, 250, 220] (chevauchement)
+        person_boxes = [(100, 100, 200, 300)]
+        obj_boxes = [(180, 150, 250, 220)]
+        self.assertTrue(check_person_object_proximity(person_boxes, obj_boxes, max_distance_px=220))
+
+        # Objet très éloigné [800, 800, 900, 900]
+        far_boxes = [(800, 800, 900, 900)]
+        self.assertFalse(check_person_object_proximity(person_boxes, far_boxes, max_distance_px=100))
+
+    def test_03_rtsp_manager_crud(self):
+        with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as f:
+            temp_config = f.name
+
+        try:
+            mgr = MultiCameraRTSPManager(config_path=temp_config)
+            # Add camera
+            cam = mgr.add_or_update_camera({
+                'id': 'test_cam_01',
+                'name': 'Test Entree',
+                'url': 'rtsp://admin:pass@127.0.0.1:554/stream',
+                'enabled': False,
+                'fps_analyze': 2.0,
+                'cooldown_sec': 3.5
+            })
+            self.assertEqual(cam.camera_id, 'test_cam_01')
+            self.assertIn('test_cam_01', mgr.streams)
+
+            # Get list
+            cams_list = mgr.get_cameras_list(mask_secret=True)
+            self.assertTrue(any(c['id'] == 'test_cam_01' for c in cams_list))
+
+            # Toggle camera
+            mgr.toggle_camera('test_cam_01', enabled=True)
+            self.assertTrue(mgr.streams['test_cam_01'].enabled)
+
+            # Delete camera
+            mgr.delete_camera('test_cam_01')
+            self.assertNotIn('test_cam_01', mgr.streams)
+        finally:
+            if os.path.exists(temp_config):
+                os.remove(temp_config)
+
+    def test_04_api_cameras_endpoints(self):
+        # GET /api/cameras
+        res = self.client.get('/api/cameras')
+        self.assertEqual(res.status_code, 200)
+        data = res.get_json()
+        self.assertIn('cameras', data)
+
+        # POST /api/cameras
+        res_post = self.client.post('/api/cameras', json={
+            'id': 'cam_api_test',
+            'name': 'API Cam Test',
+            'url': 'rtsp://test:pass@192.168.1.200:554/ch1',
+            'enabled': False,
+            'fps_analyze': 2.0,
+            'cooldown_sec': 3.5
+        })
+        self.assertEqual(res_post.status_code, 200)
+
+        # POST /api/cameras/cam_api_test/toggle
+        res_toggle = self.client.post('/api/cameras/cam_api_test/toggle', json={'enabled': False})
+        self.assertEqual(res_toggle.status_code, 200)
+
+        # DELETE /api/cameras/cam_api_test
+        res_del = self.client.delete('/api/cameras/cam_api_test')
+        self.assertEqual(res_del.status_code, 200)
+
+    def test_05_api_test_camera(self):
+        # Test sans URL
+        res_empty = self.client.post('/api/cameras/test', json={'url': ''})
+        self.assertEqual(res_empty.status_code, 400)
+
+        # Test avec fausse URL (doit répondre proprement sans crasher)
+        res_fake = self.client.post('/api/cameras/test', json={'url': 'rtsp://127.0.0.1:9999/fake'})
+        self.assertEqual(res_fake.status_code, 200)
+        data = res_fake.get_json()
+        self.assertIn('success', data)
+
+    def test_06_forensic_pages(self):
+        # Dashboard principal
+        res_home = self.client.get('/')
+        self.assertEqual(res_home.status_code, 200)
+        self.assertIn(b"Ocularis AI", res_home.data)
+        self.assertIn(b"RTSP", res_home.data)
+
+        # Stats
+        res_stats = self.client.get('/api/stats')
+        self.assertEqual(res_stats.status_code, 200)
+
+        # Rapport Officiel
+        res_report = self.client.get('/report')
+        self.assertEqual(res_report.status_code, 200)
+        self.assertIn(b"RAPPORT FORENSIQUE", res_report.data)
+
+        # Export CSV
+        res_csv = self.client.get('/api/export/csv')
+        self.assertEqual(res_csv.status_code, 200)
+        self.assertEqual(res_csv.mimetype, 'text/csv')
+
+
+if __name__ == '__main__':
+    unittest.main()

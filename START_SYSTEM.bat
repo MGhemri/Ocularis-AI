@@ -2,8 +2,8 @@
 title LANCEUR OCULARIS AI
 color 0A
 echo ========================================================
-echo   DEMARRAGE DU SYSTEME OCULARIS AI (V1.1.0)
-echo   Systeme Universel d'Analyse Forensique Video
+echo   DEMARRAGE DU SYSTEME OCULARIS AI (V1.2.0)
+echo   Systeme Universel d'Analyse Forensique & RTSP Live
 echo ========================================================
 
 set "PYTHON_EXE=python"

@@ -1,6 +1,6 @@
 # Ocularis AI — Forensic Video Analysis & Real-Time RTSP Surveillance
 
-> **Version :** 1.2.0 (Stable / RTSP & Live IP Camera Support)  
+> **Version :** 1.3.0 (Stable / Webcams PC, RTSP & Live IP Camera Support)  
 > **Statut :** Production / Grade Industriel  
 > **Contexte :** Système Universel d'Analyse Vidéo Forensique & Surveillance Temps Réel CCTV  
 > **Développeur :** Ghemri M (`contact@connect-gm.com`)  
@@ -9,20 +9,26 @@
 
 ## 1. Presentation Generale
 
-**Ocularis AI** est une solution logicielle de vision par ordinateur dediee a la videosurveillance (**CCTV**), combinant **l'analyse forensique d'archives volumineuses** et **la surveillance continue de flux RTSP / cameras IP en direct**.
+**Ocularis AI** est une solution logicielle de vision par ordinateur dediee a la videosurveillance (**CCTV**), combinant **l'analyse forensique d'archives volumineuses** et **la surveillance continue de flux RTSP / cameras IP et webcams en direct**.
 
 Concu pour les audits de securite, les centres de controle et les enquetes sur incidents, le systeme exploite les modeles **YOLOv8** associes a l'algorithme de suivi multi-objets **ByteTrack** pour detecter, suivre, classifier et documenter les anomalies sans latence d'accumulation.
 
 ---
 
-## 2. Fonctionnalites Principales (v1.2.0)
+## 2. Fonctionnalites Principales (v1.3.0)
 
-### 2.1. Surveillance Temps Reel Multi-Cameras (RTSP & IP)
+### 2.1. Surveillance Temps Reel Multi-Cameras (RTSP, IP & Webcams)
 *   **Ingestion Bufferless Zero-Latence :** Capture multi-threadee avec vidage de tampon OpenCV (`CAP_PROP_BUFFERSIZE = 1`), eliminant tout decalage temporel avec la realite.
+*   **Support Universel Webcams PC & USB :** Prise en charge native sous Windows des webcams integrees (index `0`) et webcams USB externes (index `1`, `2`, ...) via backend DirectShow (`cv2.CAP_DSHOW`).
+*   **Selection Dynamique des Cibles IA par Camera :** Choix direct parmi 14 classes COCO (personnes, sacs a dos, sacs a main, valises, smartphones, PC portables, ecrans, voitures, motos, velos, etc.) depuis l'interface web ou via fenetre modale a chaud en direct.
+*   **Modes de Declenchement Parametrables :** 
+    - **Detection Immediate (`ANY_TARGET`)** : Alerte des apparition de toute entite selectionnee dans le champ.
+    - **Forensique Strict (`FORENSIC`)** : Alerte uniquement en cas de correlation de proximite entre une personne et un objet d'interet.
+*   **Reglage Fin de la Sensibilite :** Curseur de seuil de confiance ajustable (15% a 80%, 35% par defaut pour environnement d'interieur).
 *   **Auto-Reconnexion Reseau sur Transport TCP :** Forcage du transport TCP (`rtsp_transport;tcp`) pour neutraliser les corruptions de paquets UDP. Reconnexion continue et transparente en cas de coupure reseau ou reboot camera.
 *   **Mur de Surveillance Web (Streaming MJPEG) :** Diffusion video en direct sur navigateur (`/api/stream/<camera_id>`) avec commutation instantanee entre Mode IA (bounding boxes, track IDs, scores) et Mode Brut.
-*   **Outil de Diagnostic Reseau Integre :** Verification immediate de la connectivite RTSP (`/api/cameras/test`) avec restitution de la resolution, du debit d'images et du statut de reponse.
-*   **Prereglages Constructeurs :** Profils preconfigures pour cameras Dahua, Hikvision, Uniview, Axis et webcams USB locales (`0`).
+*   **Outil de Diagnostic Reseau Integre :** Verification immediate de la connectivite RTSP / webcam (`/api/cameras/test`) avec restitution de la resolution, du debit d'images et du statut de reponse.
+*   **Prereglages Constructeurs 1-Clic :** Profils preconfigures pour cameras Dahua, Hikvision, Uniview, Axis, Webcam PC Integree (`0`) et Webcam USB Externe (`1`).
 
 ### 2.2. Analyse Forensique d'Archives Video
 *   **Traitement Sequentiel Optimise :** Saut rapide d'images par `cap.grab()` (OpenCV) sans deballage lourd, augmentant le debit de traitement de 3x a 10x sur les codecs H.264/H.265 et conteneurs proprietaires Dahua `.dav`.

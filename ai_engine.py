@@ -1,6 +1,6 @@
 """
 OCULARIS AI - MOTEUR D'ANALYSE FORENSIQUE & SURVEILLANCE RTSP (BACKEND)
-Version 1.2.0 - Grade Industriel - Optimisé GPU NVIDIA RTX / CUDA
+Version 1.3.0 - Grade Industriel - Optimisé GPU NVIDIA RTX / CUDA
 Détection intelligente, Multi-Object Tracking (ByteTrack), Anti-Flooding & Caméras IP
 Système Universel d'Analyse Forensique Vidéo & Audit CCTV
 Développeur : Ghemri M (contact@connect-gm.com)

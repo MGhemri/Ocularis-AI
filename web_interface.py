@@ -1,6 +1,6 @@
 """
 OCULARIS AI - INTERFACE WEB FORENSIQUE & MONITORING RTSP (FRONTEND)
-Version 1.2.0 - Grade Industriel - Dashboard Enquêteur, Flux En Direct & Rapports Officiels
+Version 1.3.0 - Grade Industriel - Dashboard Enquêteur, Flux En Direct & Rapports Officiels
 Système Universel d'Analyse Forensique Vidéo & Audit CCTV
 Développeur : Ghemri M (contact@connect-gm.com)
 """
@@ -96,7 +96,7 @@ def ensure_db():
     conn.close()
 
 
-# --- TEMPLATE DASHBOARD ENQUÊTEUR OCULARIS AI V1.2.0 ---
+# --- TEMPLATE DASHBOARD ENQUÊTEUR OCULARIS AI V1.3.0 ---
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="fr">
@@ -396,7 +396,7 @@ HTML_TEMPLATE = """
                 <div class="logo">OC</div>
                 <div class="brand-text">
                     <h1>Ocularis AI</h1>
-                    <p>Système Universel d'Analyse Forensique & Surveillance RTSP v1.2.0</p>
+                    <p>Système Universel d'Analyse Forensique & Surveillance RTSP v1.3.0</p>
                 </div>
             </div>
             <div class="header-actions">
@@ -668,7 +668,7 @@ HTML_TEMPLATE = """
 
         <!-- Footer -->
         <div class="footer">
-            © 2026 Ocularis AI — Grade Industriel v1.2.0 | 
+            © 2026 Ocularis AI — Grade Industriel v1.3.0 | 
             Système Universel d'Analyse Forensique Vidéo & Surveillance RTSP | 
             <a href="mailto:contact@connect-gm.com">contact@connect-gm.com</a>
         </div>
@@ -1471,7 +1471,7 @@ REPORT_TEMPLATE = """
     </table>
 
     <div style="margin-top: 40px; border-top: 1px solid #cbd5e1; padding-top: 15px; font-size: 11px; color: #94a3b8; display: flex; justify-content: space-between;">
-        <span>Ocularis AI v1.2.0 — Rapport d'Enquête Officiel</span>
+        <span>Ocularis AI v1.3.0 — Rapport d'Enquête Officiel</span>
         <span>Contact : contact@connect-gm.com</span>
     </div>
 </body>
@@ -1785,7 +1785,7 @@ if __name__ == '__main__':
     debug_mode = os.getenv("OCULARIS_WEB_DEBUG", os.getenv("GM_WEB_DEBUG", "0")) in ("1", "true", "True")
 
     print("=" * 66)
-    print("[OCULARIS AI] Interface Web Forensique & RTSP v1.2.0")
+    print("[OCULARIS AI] Interface Web Forensique & RTSP v1.3.0")
     print("   Systeme Universel d'Analyse Forensique Video & Audit CCTV")
     print("=" * 66)
     print(f"Serveur actif sur  : http://localhost:{port}")

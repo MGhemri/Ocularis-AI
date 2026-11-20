@@ -2,7 +2,7 @@
 title LANCEUR OCULARIS AI
 color 0A
 echo ========================================================
-echo   DEMARRAGE DU SYSTEME OCULARIS AI (V1.2.0)
+echo   DEMARRAGE DU SYSTEME OCULARIS AI (V1.3.0)
 echo   Systeme Universel d'Analyse Forensique & RTSP Live
 echo ========================================================
 

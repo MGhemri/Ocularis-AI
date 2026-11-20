@@ -1,6 +1,6 @@
 """
 OCULARIS AI - LANCEUR MULTI-PROCESSUS
-Version 1.2.0 - Forensique Video & Surveillance Temps Reel RTSP
+Version 1.3.0 - Forensique Video & Surveillance Temps Reel RTSP
 Detection automatique de l'environnement virtuel (.venv)
 """
 
@@ -16,7 +16,7 @@ def main():
     script_dir = Path(__file__).resolve().parent
 
     print("=" * 60)
-    print("[DEMARRAGE] SYSTEME OCULARIS AI v1.2.0")
+    print("[DEMARRAGE] SYSTEME OCULARIS AI v1.3.0")
     print("   Systeme Universel d'Analyse Forensique & Surveillance RTSP")
     print("=" * 60)
 

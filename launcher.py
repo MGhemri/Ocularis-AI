@@ -1,7 +1,7 @@
 """
 OCULARIS AI - LANCEUR MULTI-PROCESSUS
-Version 1.2.0 - Forensique Vidéo & Surveillance Temps Réel RTSP
-Détection automatique de l'environnement virtuel (.venv)
+Version 1.2.0 - Forensique Video & Surveillance Temps Reel RTSP
+Detection automatique de l'environnement virtuel (.venv)
 """
 
 import subprocess
@@ -16,23 +16,23 @@ def main():
     script_dir = Path(__file__).resolve().parent
 
     print("=" * 60)
-    print("🚀 DÉMARRAGE DU SYSTÈME OCULARIS AI v1.2.0")
-    print("   Système Universel d'Analyse Forensique & Surveillance RTSP")
+    print("[DEMARRAGE] SYSTEME OCULARIS AI v1.2.0")
+    print("   Systeme Universel d'Analyse Forensique & Surveillance RTSP")
     print("=" * 60)
 
-    # Détection automatique de l'environnement virtuel .venv
+    # Detection automatique de l'environnement virtuel .venv
     venv_python_win = script_dir / ".venv" / "Scripts" / "python.exe"
     venv_python_posix = script_dir / ".venv" / "bin" / "python"
 
     if venv_python_win.exists():
         python_exec = str(venv_python_win)
-        print(f"📦 Environnement virtuel actif : {python_exec}")
+        print(f"[ENV] Environnement virtuel actif : {python_exec}")
     elif venv_python_posix.exists():
         python_exec = str(venv_python_posix)
-        print(f"📦 Environnement virtuel actif : {python_exec}")
+        print(f"[ENV] Environnement virtuel actif : {python_exec}")
     else:
         python_exec = sys.executable
-        print(f"🐍 Python système utilisé : {python_exec}")
+        print(f"[SYSTEM] Python systeme utilise : {python_exec}")
 
     # 1. Lancer le Moteur IA et l'Interface Web
     if os.name == 'nt':  # Windows
@@ -44,16 +44,16 @@ def main():
         time.sleep(2)
         p2 = subprocess.Popen([python_exec, "web_interface.py"], cwd=str(script_dir))
 
-    print("✅ Moteur d'analyse IA et Serveur Web Flask lancés.")
-    print("⏳ Ouverture automatique du Tableau de Bord dans 4 secondes...")
+    print("[OK] Moteur d'analyse IA et Serveur Web Flask lances.")
+    print("[INFO] Ouverture automatique du Tableau de Bord dans 4 secondes...")
     time.sleep(4)
 
     # 2. Ouvrir le navigateur
     webbrowser.open("http://localhost:5000")
 
-    print("\n--- SYSTÈME OPÉRATIONNEL ---")
+    print("\n--- SYSTEME OPERATIONNEL ---")
     print("Tableau de bord : http://localhost:5000")
-    print("Pour arrêter le système, fermez les consoles associées.")
+    print("Pour arreter le systeme, fermez les consoles associees.")
 
 
 if __name__ == "__main__":

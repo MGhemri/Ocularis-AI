@@ -143,12 +143,12 @@ def send_telegram_alert(video_name, timestamp_str, severity, obj_classes, person
 
     try:
         caption = (
-            f"🚨 <b>Ocularis AI — Alerte {severity}</b>\n"
-            f"📹 <b>Caméra :</b> <code>{video_name}</code>\n"
-            f"⏱ <b>Timestamp :</b> {timestamp_str}\n"
-            f"👥 <b>Personnes :</b> {person_count}\n"
-            f"🎯 <b>Objets :</b> {obj_classes}\n"
-            f"📍 <i>Ocularis AI Surveillance</i>"
+            f"<b>Ocularis AI — Alerte {severity}</b>\n"
+            f"<b>Camera :</b> <code>{video_name}</code>\n"
+            f"<b>Horodatage :</b> {timestamp_str}\n"
+            f"<b>Personnes :</b> {person_count}\n"
+            f"<b>Objets :</b> {obj_classes}\n"
+            f"<i>Ocularis AI Surveillance CCTV</i>"
         )
         url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendPhoto"
         
@@ -177,9 +177,9 @@ def send_telegram_alert(video_name, timestamp_str, severity, obj_classes, person
         req.add_header('Content-Type', f'multipart/form-data; boundary={boundary}')
         with urllib.request.urlopen(req, timeout=8) as response:
             pass
-        logger.info(f"📲 Alerte Telegram transmise pour {video_name} ({timestamp_str})")
+        logger.info(f"[TELEGRAM] Alerte transmise pour {video_name} ({timestamp_str})")
     except Exception as e:
-        logger.warning(f"Échec envoi Telegram: {e}")
+        logger.warning(f"Echec envoi Telegram: {e}")
 
 
 def check_person_object_proximity(person_boxes, object_boxes, max_distance_px):
@@ -217,20 +217,20 @@ def analyze_videos():
         device = 'cpu'
         gpu_name = "CPU"
 
-    logger.info(f"🚀 DÉMARRAGE MOTEUR SUR : {device.upper()} ({gpu_name})")
+    logger.info(f"[INIT] DEMARRAGE MOTEUR SUR : {device.upper()} ({gpu_name})")
 
     # Vérification du fichier de poids local YOLO
     model_path = Path(MODEL_SIZE)
     if not model_path.exists():
-        logger.error(f"❌ Modèle '{MODEL_SIZE}' introuvable à la racine du projet.")
-        logger.error("Téléchargez le fichier de poids (yolov8m.pt) et placez-le dans le dossier du projet.")
+        logger.error(f"[ERREUR] Modele '{MODEL_SIZE}' introuvable a la racine du projet.")
+        logger.error("Telechargez le fichier de poids (yolov8m.pt) et placez-le dans le dossier du projet.")
         return
 
     try:
         from ultralytics import YOLO
         model = YOLO(MODEL_SIZE)
     except Exception as e:
-        logger.error(f"❌ Erreur chargement Ultralytics YOLO: {e}")
+        logger.error(f"[ERREUR] Erreur chargement Ultralytics YOLO: {e}")
         return
 
     conn = init_db()
@@ -245,11 +245,11 @@ def analyze_videos():
             video_files.append(p)
 
     if not video_files:
-        logger.warning(f"⚠️ Aucune vidéo trouvée dans {VIDEO_FOLDER} (formats supportés: .mp4, .avi, .mkv, .mov, .dav)")
+        logger.warning(f"[AVERTISSEMENT] Aucune video trouvee dans {VIDEO_FOLDER} (formats supportes: .mp4, .avi, .mkv, .mov, .dav)")
         conn.close()
         return
 
-    logger.info(f"📁 {len(video_files)} vidéo(s) identifiée(s) pour analyse.")
+    logger.info(f"[INFO] {len(video_files)} video(s) identifiee(s) pour analyse.")
 
     for video_path in video_files:
         # Chemin relatif propre pour identifier la caméra et la date
@@ -263,13 +263,13 @@ def analyze_videos():
         row = cursor.fetchone()
 
         if row and row[1] == 'COMPLETED':
-            logger.info(f"⏭️  SKIP : '{v_name}' déjà traité avec succès.")
+            logger.info(f"[SKIP] '{v_name}' deja traite avec succes.")
             continue
 
         # Gestion de reprise après crash ou statut PROCESSING interrompu
         if row and row[1] == 'PROCESSING':
             video_db_id = row[0]
-            logger.info(f"🔄 REPRISE : Nettoyage des événements partiels précédents pour '{v_name}' (ID: {video_db_id})...")
+            logger.info(f"[REPRISE] Nettoyage des evenements partiels precedents pour '{v_name}' (ID: {video_db_id})...")
             cursor.execute("DELETE FROM events WHERE video_id=?", (video_db_id,))
             cursor.execute("UPDATE videos SET status='PROCESSING', processed_date=? WHERE id=?", 
                            (datetime.datetime.now(), video_db_id))
@@ -286,7 +286,7 @@ def analyze_videos():
         # Ouverture flux vidéo avec OpenCV
         cap = cv2.VideoCapture(str(video_path))
         if not cap.isOpened():
-            logger.error(f"❌ Impossible d'ouvrir la vidéo : {video_path}")
+            logger.error(f"[ERREUR] Impossible d'ouvrir la video : {video_path}")
             cursor.execute("UPDATE videos SET status='ERROR' WHERE id=?", (video_db_id,))
             conn.commit()
             continue
@@ -304,7 +304,7 @@ def analyze_videos():
         frame_area = frame_w * frame_h
         min_obj_pixels = frame_area * MIN_OBJECT_AREA_RATIO
 
-        logger.info(f"🎥 Analyse : '{v_name}' | FPS: {fps:.1f} | Résolution: {frame_w}x{frame_h} | Frames estimées: {total_frames if total_frames > 0 else 'Inconnue'}")
+        logger.info(f"[ANALYSE] '{v_name}' | FPS: {fps:.1f} | Resolution: {frame_w}x{frame_h} | Frames estimees: {total_frames if total_frames > 0 else 'Inconnue'}")
         pbar = tqdm(total=total_frames if total_frames > 0 else None, unit="img", desc=Path(v_name).name[:20])
 
         current_frame_id = 0
@@ -469,23 +469,23 @@ def analyze_videos():
         cursor.execute("UPDATE videos SET status='COMPLETED' WHERE id=?", (video_db_id,))
         conn.commit()
         pbar.close()
-        logger.info(f"✅ Vidéo terminée : '{v_name}' (Total frames traitées : {current_frame_id})")
+        logger.info(f"[OK] Video terminee : '{v_name}' (Total frames traitees : {current_frame_id})")
 
     conn.close()
-    logger.info("🎉 TOUTES LES ANALYSES DE FICHIERS SONT TERMINÉES.")
+    logger.info("[COMPLET] Toutes les analyses de fichiers sont terminees.")
 
 
 def run_live_rtsp():
     """Démarre la surveillance continue des flux RTSP multi-caméras en console."""
-    logger.info("🚀 DÉMARRAGE DU MODULE DE SURVEILLANCE RTSP EN DIRECT...")
+    logger.info("[INIT] Demarrage du module de surveillance RTSP en direct...")
     try:
         from rtsp_manager import MultiCameraRTSPManager
         manager = MultiCameraRTSPManager.get_instance()
     except Exception as e:
-        logger.error(f"❌ Impossible d'initialiser le gestionnaire RTSP : {e}")
+        logger.error(f"[ERREUR] Impossible d'initialiser le gestionnaire RTSP : {e}")
         return
 
-    logger.info("📡 Surveillance active des caméras (cameras.json). Appuyez sur Ctrl+C pour arrêter.")
+    logger.info("[ACTIF] Surveillance des flux RTSP (cameras.json). Appuyez sur Ctrl+C pour arreter.")
     try:
         last_report = time.time()
         while True:
@@ -495,12 +495,12 @@ def run_live_rtsp():
                 cams = manager.get_cameras_list(mask_secret=True)
                 active = [c for c in cams if c['enabled']]
                 live = [c for c in active if c['status'] == 'LIVE']
-                logger.info(f"📊 État RTSP : {len(live)}/{len(active)} flux en direct actif(s) | Total configuré : {len(cams)}")
+                logger.info(f"[ETAT RTSP] : {len(live)}/{len(active)} flux en direct actif(s) | Total configure : {len(cams)}")
                 for c in active:
-                    logger.info(f"   📹 [{c['id']}] {c['name']} : {c['status']} ({c['fps_actual']} FPS, {c['total_events']} alertes)")
+                    logger.info(f"   [{c['id']}] {c['name']} : {c['status']} ({c['fps_actual']} FPS, {c['total_events']} alertes)")
                 last_report = now
     except KeyboardInterrupt:
-        logger.info("🛑 Arrêt de la surveillance RTSP demandé par l'utilisateur.")
+        logger.info("[ARRET] Arret de la surveillance RTSP demande.")
         manager.stop_all()
 
 

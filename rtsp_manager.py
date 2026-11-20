@@ -206,7 +206,7 @@ class RTSPStreamReader:
         self.running = True
         self.thread = threading.Thread(target=self._capture_worker, name=f"RTSP-{self.camera_id}", daemon=True)
         self.thread.start()
-        logger.info(f"📹 Démarrage du thread de capture pour '{self.name}' ({self.camera_id})")
+        logger.info(f"[INFO] Demarrage du thread de capture pour '{self.name}' ({self.camera_id})")
 
     def stop(self):
         """Arrête proprement le thread de capture."""
@@ -214,7 +214,7 @@ class RTSPStreamReader:
         if self.thread and self.thread.is_alive():
             self.thread.join(timeout=2.0)
         self.status = "STOPPED"
-        logger.info(f"🛑 Arrêt du thread de capture pour '{self.name}' ({self.camera_id})")
+        logger.info(f"[INFO] Arret du thread de capture pour '{self.name}' ({self.camera_id})")
 
     def _capture_worker(self):
         """Boucle de capture d'images bufferless avec auto-reconnexion."""
@@ -277,7 +277,7 @@ class RTSPStreamReader:
 
             except Exception as e:
                 self.error_message = str(e)
-                logger.warning(f"⚠️ Erreur capture sur '{self.name}' : {e}")
+                logger.warning(f"[AVERTISSEMENT] Erreur capture sur '{self.name}' : {e}")
             finally:
                 if cap is not None:
                     try:
@@ -391,7 +391,7 @@ class MultiCameraRTSPManager:
             try:
                 with open(self.config_path, 'w', encoding='utf-8') as f:
                     json.dump(default_cameras, f, indent=2, ensure_ascii=False)
-                logger.info(f"📄 Fichier de configuration créé : {self.config_path}")
+                logger.info(f"[INFO] Fichier de configuration cree : {self.config_path}")
             except Exception as e:
                 logger.error(f"Impossible de créer le fichier de config par défaut : {e}")
 
@@ -586,7 +586,7 @@ class MultiCameraRTSPManager:
 
         model_file = Path(MODEL_SIZE)
         if not model_file.exists():
-            logger.warning(f"⚠️ Fichier de poids '{MODEL_SIZE}' introuvable pour l'inférence en direct.")
+            logger.warning(f"[AVERTISSEMENT] Fichier de poids '{MODEL_SIZE}' introuvable pour l'inference en direct.")
             return False
 
         try:
@@ -594,10 +594,10 @@ class MultiCameraRTSPManager:
             from ultralytics import YOLO
             self.device = '0' if torch.cuda.is_available() else 'cpu'
             self.model = YOLO(str(model_file))
-            logger.info(f"🧠 Modèle YOLOv8m chargé pour surveillance en direct sur : {self.device.upper()}")
+            logger.info(f"[INFO] Modele YOLOv8m charge pour surveillance en direct sur : {self.device.upper()}")
             return True
         except Exception as e:
-            logger.error(f"❌ Erreur de chargement du modèle YOLO : {e}")
+            logger.error(f"[ERREUR] Erreur de chargement du modele YOLO : {e}")
             return False
 
     def start_ai_worker(self):
@@ -808,7 +808,7 @@ class MultiCameraRTSPManager:
             conn.commit()
             conn.close()
 
-            logger.info(f"🚨 ALERTE EN DIRECT [{severity}] sur '{stream.name}' : {classes_str} (Personnes: {person_count})")
+            logger.info(f"[ALERTE EN DIRECT] [{severity}] sur '{stream.name}' : {classes_str} (Personnes: {person_count})")
 
             # Notification Telegram si activée
             if TELEGRAM_ENABLED and severity in ("CRITICAL", "SUSPICIOUS"):
@@ -822,7 +822,7 @@ class MultiCameraRTSPManager:
                 )
 
         except Exception as e:
-            logger.error(f"Erreur d'enregistrement d'événement en base : {e}")
+            logger.error(f"Erreur d'enregistrement d'evenement en base : {e}")
 
     def _dispatch_telegram(self, camera_name, timestamp_str, severity, classes_str, person_count, snapshot_filename):
         """Transmet une alerte photo vers Telegram."""
@@ -831,12 +831,12 @@ class MultiCameraRTSPManager:
         try:
             import urllib.request
             caption = (
-                f"🚨 <b>Ocularis AI — Alerte En Direct {severity}</b>\n"
-                f"📹 <b>Caméra :</b> <code>{camera_name}</code>\n"
-                f"⏱ <b>Horodatage :</b> {timestamp_str}\n"
-                f"👥 <b>Personnes :</b> {person_count}\n"
-                f"🎯 <b>Détections :</b> {classes_str}\n"
-                f"📍 <i>Ocularis AI Surveillance CCTV</i>"
+                f"<b>Ocularis AI — Alerte En Direct {severity}</b>\n"
+                f"<b>Camera :</b> <code>{camera_name}</code>\n"
+                f"<b>Horodatage :</b> {timestamp_str}\n"
+                f"<b>Personnes :</b> {person_count}\n"
+                f"<b>Detections :</b> {classes_str}\n"
+                f"<i>Ocularis AI Surveillance CCTV</i>"
             )
             url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendPhoto"
             full_path = Path(OUTPUT_FOLDER) / "snapshots" / snapshot_filename
@@ -864,9 +864,9 @@ class MultiCameraRTSPManager:
             req.add_header('Content-Type', f'multipart/form-data; boundary={boundary}')
             with urllib.request.urlopen(req, timeout=8) as response:
                 pass
-            logger.info(f"📲 Alerte Telegram en direct transmise pour '{camera_name}'")
+            logger.info(f"[TELEGRAM] Alerte en direct transmise pour '{camera_name}'")
         except Exception as e:
-            logger.warning(f"Échec Telegram en direct : {e}")
+            logger.warning(f"Echec Telegram en direct : {e}")
 
     # --- GÉNÉRATEUR MJPEG POUR STREAMING WEB ---
 

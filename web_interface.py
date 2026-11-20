@@ -18,7 +18,7 @@ try:
     from rtsp_manager import MultiCameraRTSPManager, test_rtsp_connection
     rtsp_manager = MultiCameraRTSPManager.get_instance()
 except Exception as e:
-    print(f"⚠️ Initialisation RTSP Manager en mode dégradé : {e}")
+    print(f"[AVERTISSEMENT] Initialisation RTSP Manager en mode degrade : {e}")
     rtsp_manager = None
 
 app = Flask(__name__)
@@ -387,24 +387,24 @@ HTML_TEMPLATE = """
                     <div class="status-dot"></div>
                     Moteur IA Actif
                 </div>
-                <a href="/report" target="_blank" class="btn btn-outline">📄 Rapport d'Enquête</a>
-                <a href="/api/export/csv" class="btn btn-outline">📥 Export CSV</a>
-                <button class="btn btn-primary" id="btn-refresh">🔄 Actualiser</button>
+                <a href="/report" target="_blank" class="btn btn-outline">Rapport d'Enquete</a>
+                <a href="/api/export/csv" class="btn btn-outline">Export CSV</a>
+                <button class="btn btn-primary" id="btn-refresh">Actualiser</button>
             </div>
         </div>
 
         <!-- Navigation Tabs -->
         <div class="nav-tabs">
             <button class="nav-tab-btn active" data-tab="tab-events">
-                🎯 Événements & Preuves Forensiques
+                Evenements & Preuves Forensiques
                 <span class="tab-badge" id="badge-events-count">0</span>
             </button>
             <button class="nav-tab-btn" data-tab="tab-live">
-                📹 Flux En Direct (RTSP)
+                Flux En Direct (RTSP)
                 <span class="tab-badge live" id="badge-live-count">0 en direct</span>
             </button>
             <button class="nav-tab-btn" data-tab="tab-config">
-                ⚙️ Configuration Caméras IP
+                Configuration Cameras IP
             </button>
         </div>
 
@@ -412,35 +412,35 @@ HTML_TEMPLATE = """
         <div class="stats-grid">
             <div class="stat-card">
                 <div class="stat-header">
-                    <div class="stat-icon primary">📹</div>
+                    <div class="stat-icon primary" style="font-size:12px; font-weight:800;">SRC</div>
                 </div>
                 <div class="stat-value" id="stat-videos">0</div>
-                <div class="stat-label">Sources & Caméras</div>
+                <div class="stat-label">Sources & Cameras</div>
             </div>
             <div class="stat-card">
                 <div class="stat-header">
-                    <div class="stat-icon danger">🚨</div>
+                    <div class="stat-icon danger" style="font-size:12px; font-weight:800;">CRI</div>
                 </div>
                 <div class="stat-value" id="stat-critical">0</div>
                 <div class="stat-label">Alertes Critiques</div>
             </div>
             <div class="stat-card">
                 <div class="stat-header">
-                    <div class="stat-icon warning">⚠️</div>
+                    <div class="stat-icon warning" style="font-size:12px; font-weight:800;">EVT</div>
                 </div>
                 <div class="stat-value" id="stat-events">0</div>
-                <div class="stat-label">Total Détections</div>
+                <div class="stat-label">Total Detections</div>
             </div>
             <div class="stat-card">
                 <div class="stat-header">
-                    <div class="stat-icon success">⭐</div>
+                    <div class="stat-icon success" style="font-size:12px; font-weight:800;">RET</div>
                 </div>
                 <div class="stat-value" id="stat-retained">0</div>
                 <div class="stat-label">Preuves Retenues</div>
             </div>
             <div class="stat-card">
                 <div class="stat-header">
-                    <div class="stat-icon purple">🎯</div>
+                    <div class="stat-icon purple" style="font-size:12px; font-weight:800;">CNF</div>
                 </div>
                 <div class="stat-value" id="stat-confidence">0%</div>
                 <div class="stat-label">Confiance Moyenne</div>
@@ -452,25 +452,25 @@ HTML_TEMPLATE = """
             <!-- Filters -->
             <div class="filters">
                 <div class="filter-group">
-                    <label>Source / Caméra</label>
-                    <select id="filter-video"><option value="">Toutes les caméras</option></select>
+                    <label>Source / Camera</label>
+                    <select id="filter-video"><option value="">Toutes les cameras</option></select>
                 </div>
                 <div class="filter-group">
-                    <label>Sévérité</label>
+                    <label>Severite</label>
                     <select id="filter-severity">
-                        <option value="">Toutes les sévérités</option>
-                        <option value="CRITICAL">🔴 Critique (Personne + Objet)</option>
-                        <option value="SUSPICIOUS">🟠 Suspect (Attroupement)</option>
-                        <option value="INFO">🔵 Information (Véhicule)</option>
+                        <option value="">Toutes les severites</option>
+                        <option value="CRITICAL">Critique (Personne + Objet)</option>
+                        <option value="SUSPICIOUS">Suspect (Attroupement)</option>
+                        <option value="INFO">Information (Vehicule)</option>
                     </select>
                 </div>
                 <div class="filter-group">
-                    <label>Qualification Enquêteur</label>
+                    <label>Qualification Enqueteur</label>
                     <select id="filter-qualification">
                         <option value="">Toutes</option>
-                        <option value="RETENU">⭐ Preuves Retenues</option>
-                        <option value="A_VERIFIER" selected>⚠️ À Vérifier</option>
-                        <option value="FAUX_POSITIF">🗑️ Faux Positifs</option>
+                        <option value="RETENU">Preuves Retenues</option>
+                        <option value="A_VERIFIER" selected>A Verifier</option>
+                        <option value="FAUX_POSITIF">Faux Positifs</option>
                     </select>
                 </div>
                 <div class="filter-group">
@@ -503,7 +503,7 @@ HTML_TEMPLATE = """
             <div class="events-container">
                 <div class="section-header">
                     <div class="section-title">
-                        🎯 Événements & Preuves Forensiques
+                        Evenements & Preuves Forensiques
                     </div>
                     <div class="section-count" id="events-count">0 événement(s) affiché(s)</div>
                 </div>
@@ -517,11 +517,11 @@ HTML_TEMPLATE = """
         <div id="tab-live" class="tab-content">
             <div class="cams-wall-header">
                 <div class="cams-wall-title">
-                    📹 Mur de Surveillance CCTV en Direct (Zéro-Latence Bufferless)
+                    Mur de Surveillance CCTV en Direct (Zero-Latence Bufferless)
                 </div>
                 <div>
-                    <button class="btn btn-outline" id="btn-toggle-all-annot">🔄 Basculer Mode IA / Brut</button>
-                    <button class="btn btn-primary" onclick="switchTab('tab-config')">➕ Configurer Caméras</button>
+                    <button class="btn btn-outline" id="btn-toggle-all-annot">Basculer Mode IA / Brut</button>
+                    <button class="btn btn-primary" onclick="switchTab('tab-config')">Configurer Cameras</button>
                 </div>
             </div>
             <div id="live-cams-container" class="cams-grid">
@@ -534,7 +534,7 @@ HTML_TEMPLATE = """
             <div class="config-container">
                 <div class="section-header">
                     <div class="section-title">
-                        ⚙️ Paramétrage des Caméras IP & Flux RTSP
+                        Parametrage des Cameras IP & Flux RTSP
                     </div>
                 </div>
 
@@ -582,8 +582,8 @@ HTML_TEMPLATE = """
                     </div>
 
                     <div style="display:flex; gap:12px; align-items:center; margin-top:14px; flex-wrap:wrap;">
-                        <button type="button" class="btn btn-primary" id="btn-save-cam">💾 Enregistrer la Caméra</button>
-                        <button type="button" class="btn btn-outline" id="btn-test-cam">🧪 Tester la Connexion</button>
+                        <button type="button" class="btn btn-primary" id="btn-save-cam">Enregistrer la Camera</button>
+                        <button type="button" class="btn btn-outline" id="btn-test-cam">Tester la Connexion</button>
                         <span id="test-status" style="font-size:12px; font-weight:700;"></span>
                     </div>
                 </div>
@@ -750,20 +750,20 @@ HTML_TEMPLATE = """
                 if (isRetained) cardClass += ' retained';
                 if (isDismissed) cardClass += ' dismissed';
 
-                let sevTag = '<span class="meta-tag sev-susp">🟠 Suspect</span>';
-                if (e.severity === 'CRITICAL') sevTag = '<span class="meta-tag sev-crit">🔴 Critique</span>';
-                else if (e.severity === 'INFO') sevTag = '<span class="meta-tag sev-info">🔵 Information</span>';
+                let sevTag = '<span class="meta-tag sev-susp">Suspect</span>';
+                if (e.severity === 'CRITICAL') sevTag = '<span class="meta-tag sev-crit">Critique</span>';
+                else if (e.severity === 'INFO') sevTag = '<span class="meta-tag sev-info">Information</span>';
 
                 const objects = e.obj_class.split(',').map(o => o.trim()).filter(Boolean);
                 const chips = objects.map(o => `<span class="object-chip">${escapeHtml(o)}</span>`).join('');
 
-                const notesHtml = e.notes ? `<span class="notes-preview">💬 « ${escapeHtml(e.notes)} »</span>` : '';
+                const notesHtml = e.notes ? `<span class="notes-preview">Note : « ${escapeHtml(e.notes)} »</span>` : '';
 
                 return `
                     <div class="${cardClass}" id="event-row-${e.id}">
                         <div class="event-image" data-action="zoom" data-snapshot="${escapeHtml(e.snapshot_path)}" data-caption="${escapeHtml(e.filename)} — ${escapeHtml(e.timestamp_str)}">
                             <img src="/snapshots/${escapeHtml(e.snapshot_path)}" alt="Capture forensique" loading="lazy">
-                            <div class="zoom-icon">🔍</div>
+                            <div class="zoom-icon">ZOOM</div>
                         </div>
                         <div class="event-details">
                             <div class="event-top">
@@ -771,9 +771,9 @@ HTML_TEMPLATE = """
                                     <div class="event-title">${escapeHtml(e.filename)}</div>
                                     <div class="event-meta" style="margin-top:6px;">
                                         ${sevTag}
-                                        <span class="meta-tag time">⏱ ${escapeHtml(e.timestamp_str)}</span>
-                                        <span class="meta-tag people">👥 ${e.count_people} pers.</span>
-                                        <span class="meta-tag conf">🎯 ${e.confidence}%</span>
+                                        <span class="meta-tag time">${escapeHtml(e.timestamp_str)}</span>
+                                        <span class="meta-tag people">${e.count_people} pers.</span>
+                                        <span class="meta-tag conf">${e.confidence}%</span>
                                         ${e.track_id ? `<span class="meta-tag" style="background:#f1f5f9; color:#475569;">Track #${e.track_id}</span>` : ''}
                                     </div>
                                 </div>
@@ -786,13 +786,13 @@ HTML_TEMPLATE = """
 
                             <div class="event-actions">
                                 <button class="btn-qualif btn-retain" data-action="qualify" data-id="${e.id}" data-type="RETENU">
-                                    ⭐ ${isRetained ? 'Preuve Retenue' : 'Retenir Preuve'}
+                                    ${isRetained ? 'Preuve Retenue' : 'Retenir Preuve'}
                                 </button>
                                 <button class="btn-qualif btn-dismiss" data-action="qualify" data-id="${e.id}" data-type="FAUX_POSITIF">
-                                    🗑️ ${isDismissed ? 'Faux Positif' : 'Faux Positif'}
+                                    Faux Positif
                                 </button>
                                 <button class="btn-qualif btn-dismiss" data-action="note" data-id="${e.id}">
-                                    📝 Ajouter Note
+                                    Ajouter Note
                                 </button>
                                 ${notesHtml}
                             </div>
@@ -840,10 +840,10 @@ HTML_TEMPLATE = """
                     <td>${c.total_events}</td>
                     <td>
                         <button class="btn btn-outline" style="padding:4px 8px; font-size:11px;" onclick="toggleCamera('${c.id}')">
-                            ${c.enabled ? '⏸ Pause' : '▶ Activer'}
+                            ${c.enabled ? 'Pause' : 'Activer'}
                         </button>
                         <button class="btn btn-danger" style="padding:4px 8px; font-size:11px;" onclick="deleteCamera('${c.id}')">
-                            🗑️
+                            Supprimer
                         </button>
                     </td>
                 </tr>
@@ -881,9 +881,9 @@ HTML_TEMPLATE = """
                         </div>
                         <div class="cam-card-footer">
                             <div class="cam-metrics">
-                                <span>⚡ ${c.fps_actual} FPS</span>
-                                <span>📐 ${escapeHtml(c.resolution)}</span>
-                                <span>🚨 ${c.total_events} alertes</span>
+                                <span>${c.fps_actual} FPS</span>
+                                <span>${escapeHtml(c.resolution)}</span>
+                                <span>${c.total_events} alertes</span>
                             </div>
                             <div class="cam-controls">
                                 <button class="btn btn-outline" style="padding:4px 10px; font-size:11px;" onclick="toggleCamera('${c.id}')">
@@ -935,7 +935,7 @@ HTML_TEMPLATE = """
                 return;
             }
             statusSpan.style.color = '#0284c7';
-            statusSpan.textContent = "⏳ Test de connexion en cours (3.5s max)...";
+            statusSpan.textContent = "Test de connexion en cours (3.5s max)...";
 
             fetch('/api/cameras/test', {
                 method: 'POST',
@@ -946,15 +946,15 @@ HTML_TEMPLATE = """
             .then(res => {
                 if (res.success) {
                     statusSpan.style.color = '#16a34a';
-                    statusSpan.textContent = `✅ Connexion réussie ! Résolution : ${res.width}x${res.height} @ ${res.fps} FPS`;
+                    statusSpan.textContent = `[OK] Connexion reussie ! Resolution : ${res.width}x${res.height} @ ${res.fps} FPS`;
                 } else {
                     statusSpan.style.color = '#dc2626';
-                    statusSpan.textContent = `❌ Échec connexion : ${res.error || 'Délai dépassé'}`;
+                    statusSpan.textContent = `[ECHEC] Connexion : ${res.error || 'Delai depasse'}`;
                 }
             })
             .catch(err => {
                 statusSpan.style.color = '#dc2626';
-                statusSpan.textContent = "❌ Erreur réseau lors du test.";
+                statusSpan.textContent = "[ERREUR] Erreur reseau lors du test.";
             });
         });
 
@@ -989,7 +989,7 @@ HTML_TEMPLATE = """
                 if (res.error) {
                     alert("Erreur: " + res.error);
                 } else {
-                    alert("✅ Caméra enregistrée avec succès !");
+                    alert("[OK] Camera enregistree avec succes !");
                     loadCameras();
                 }
             })
@@ -1119,7 +1119,7 @@ REPORT_TEMPLATE = """
     </style>
 </head>
 <body>
-    <button class="print-btn" onclick="window.print()">🖨️ Imprimer / Exporter en PDF</button>
+    <button class="print-btn" onclick="window.print()">Imprimer / Exporter en PDF</button>
     <div class="report-header">
         <div>
             <div class="brand-title">OCULARIS AI — RAPPORT FORENSIQUE VIDÉO</div>
@@ -1468,13 +1468,13 @@ if __name__ == '__main__':
     debug_mode = os.getenv("OCULARIS_WEB_DEBUG", os.getenv("GM_WEB_DEBUG", "0")) in ("1", "true", "True")
 
     print("=" * 66)
-    print("🚀 OCULARIS AI — Interface Web Forensique & RTSP v1.2.0")
-    print("   Système Universel d'Analyse Forensique Vidéo & Audit CCTV")
+    print("[OCULARIS AI] Interface Web Forensique & RTSP v1.2.0")
+    print("   Systeme Universel d'Analyse Forensique Video & Audit CCTV")
     print("=" * 66)
-    print(f"📡 Serveur actif sur  : http://localhost:{port}")
-    print(f"📹 Mur Caméras RTSP   : http://localhost:{port} (Onglet Flux En Direct)")
-    print(f"📄 Rapport d'enquête  : http://localhost:{port}/report")
-    print(f"📥 Export CSV         : http://localhost:{port}/api/export/csv")
+    print(f"Serveur actif sur  : http://localhost:{port}")
+    print(f"Mur Cameras RTSP   : http://localhost:{port} (Onglet Flux En Direct)")
+    print(f"Rapport d'enquete  : http://localhost:{port}/report")
+    print(f"Export CSV         : http://localhost:{port}/api/export/csv")
     print("=" * 66)
 
     app.run(debug=debug_mode, host=host, port=port)

@@ -204,6 +204,38 @@ class TestOcularisRTSP(unittest.TestCase):
         # Nettoyage
         self.client.delete('/api/cameras/cam_classes_test')
 
+    def test_09_videos_folder_management(self):
+        # GET /api/videos-folder
+        res_info = self.client.get('/api/videos-folder')
+        self.assertEqual(res_info.status_code, 200)
+        data = res_info.get_json()
+        self.assertIn('folder_path', data)
+        self.assertIn('total_files', data)
+        self.assertIn('files', data)
+        self.assertIn('analysis_state', data)
+
+        # POST /api/videos-folder/upload (test d'un fichier fictif .mp4)
+        import io
+        dummy_video = (io.BytesIO(b"dummy video content for ocularis test"), "unit_test_video.mp4")
+        res_up = self.client.post('/api/videos-folder/upload', data={'files': dummy_video}, content_type='multipart/form-data')
+        self.assertEqual(res_up.status_code, 200)
+        up_data = res_up.get_json()
+        self.assertTrue(up_data['ok'])
+        self.assertIn('unit_test_video.mp4', up_data['saved'])
+
+        # GET /api/videos-folder/analyze-status
+        res_st = self.client.get('/api/videos-folder/analyze-status')
+        self.assertEqual(res_st.status_code, 200)
+        st_data = res_st.get_json()
+        self.assertIn('is_running', st_data)
+        self.assertIn('status', st_data)
+
+        # POST /api/videos-folder/delete pour nettoyer le fichier de test
+        res_del = self.client.post('/api/videos-folder/delete', json={'filename': 'unit_test_video.mp4'})
+        self.assertEqual(res_del.status_code, 200)
+        del_data = res_del.get_json()
+        self.assertTrue(del_data['ok'])
+
 
 if __name__ == '__main__':
     unittest.main()

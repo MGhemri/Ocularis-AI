@@ -4,6 +4,7 @@ Version 1.3.0 - Grade Industriel - Optimisé GPU NVIDIA RTX / CUDA
 Détection intelligente, Multi-Object Tracking (ByteTrack), Anti-Flooding & Caméras IP
 Système Universel d'Analyse Forensique Vidéo & Audit CCTV
 Développeur : Ghemri M (contact@connect-gm.com)
+Historique  : Conçu initialement en 2023, republié publiquement en 2026 sous licence MIT
 """
 
 import os
@@ -207,8 +208,11 @@ def check_person_object_proximity(person_boxes, object_boxes, max_distance_px):
     return False
 
 
-def analyze_videos():
-    """Exécute l'analyse vidéo forensique complète optimisée pour GPU CUDA et flux CCTV."""
+def analyze_videos(target_filename: str = None, progress_callback = None):
+    """
+    Exécute l'analyse vidéo forensique complète optimisée pour GPU CUDA et flux CCTV.
+    Peut cibler un fichier unique ou l'ensemble des vidéos du dossier source.
+    """
     try:
         import torch
         device = '0' if torch.cuda.is_available() else 'cpu'
@@ -224,30 +228,44 @@ def analyze_videos():
     if not model_path.exists():
         logger.error(f"[ERREUR] Modele '{MODEL_SIZE}' introuvable a la racine du projet.")
         logger.error("Telechargez le fichier de poids (yolov8m.pt) et placez-le dans le dossier du projet.")
-        return
+        if progress_callback:
+            progress_callback("", 0, 0, status="ERROR_NO_MODEL")
+        return {'processed': 0, 'error': f"Modele '{MODEL_SIZE}' introuvable."}
 
     try:
         from ultralytics import YOLO
         model = YOLO(MODEL_SIZE)
     except Exception as e:
         logger.error(f"[ERREUR] Erreur chargement Ultralytics YOLO: {e}")
-        return
+        if progress_callback:
+            progress_callback("", 0, 0, status="ERROR_YOLO")
+        return {'processed': 0, 'error': str(e)}
 
     conn = init_db()
     cursor = conn.cursor()
 
     # Scan récursif pour supporter les sous-dossiers NVR (ex: Cam_01/2026-11-20/file.dav)
-    extensions = {'.mp4', '.avi', '.mkv', '.mov', '.dav', '.m4v'}
+    extensions = {'.mp4', '.avi', '.mkv', '.mov', '.dav', '.m4v', '.flv', '.ts'}
     video_files = []
     base_folder = Path(VIDEO_FOLDER)
     for p in base_folder.rglob('*'):
         if p.is_file() and p.suffix.lower() in extensions:
             video_files.append(p)
 
+    if target_filename:
+        clean_target = str(target_filename).replace("\\", "/").strip()
+        video_files = [
+            p for p in video_files 
+            if p.name == clean_target or str(p.relative_to(base_folder)).replace("\\", "/") == clean_target
+        ]
+
     if not video_files:
-        logger.warning(f"[AVERTISSEMENT] Aucune video trouvee dans {VIDEO_FOLDER} (formats supportes: .mp4, .avi, .mkv, .mov, .dav)")
+        msg = f"Aucune video trouvee dans {VIDEO_FOLDER}" if not target_filename else f"Fichier '{target_filename}' introuvable dans {VIDEO_FOLDER}"
+        logger.warning(f"[AVERTISSEMENT] {msg} (formats supportes: .mp4, .avi, .mkv, .mov, .dav, .flv, .ts)")
         conn.close()
-        return
+        if progress_callback:
+            progress_callback(target_filename or "", 0, 0, status="EMPTY")
+        return {'processed': 0, 'total': 0}
 
     logger.info(f"[INFO] {len(video_files)} video(s) identifiee(s) pour analyse.")
 
@@ -329,6 +347,9 @@ def analyze_videos():
 
             current_frame_id += 1
             pbar.update(1)
+
+            if progress_callback and (current_frame_id % 30 == 0 or (total_frames > 0 and current_frame_id >= total_frames)):
+                progress_callback(v_name, current_frame_id, total_frames, status="PROCESSING")
 
             # INFERENCE IA (Tracking multi-objets ByteTrack avec fallback gracieux)
             results = None
@@ -469,10 +490,15 @@ def analyze_videos():
         cursor.execute("UPDATE videos SET status='COMPLETED' WHERE id=?", (video_db_id,))
         conn.commit()
         pbar.close()
+        if progress_callback:
+            progress_callback(v_name, current_frame_id, total_frames, status="COMPLETED")
         logger.info(f"[OK] Video terminee : '{v_name}' (Total frames traitees : {current_frame_id})")
 
     conn.close()
+    if progress_callback:
+        progress_callback(None, 0, 0, status="ALL_DONE")
     logger.info("[COMPLET] Toutes les analyses de fichiers sont terminees.")
+    return {'processed': len(video_files), 'total': len(video_files)}
 
 
 def run_live_rtsp():

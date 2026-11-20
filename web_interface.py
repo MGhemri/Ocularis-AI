@@ -3,14 +3,19 @@ OCULARIS AI - INTERFACE WEB FORENSIQUE & MONITORING RTSP (FRONTEND)
 Version 1.3.0 - Grade Industriel - Dashboard Enquêteur, Flux En Direct & Rapports Officiels
 Système Universel d'Analyse Forensique Vidéo & Audit CCTV
 Développeur : Ghemri M (contact@connect-gm.com)
+Historique  : Conçu initialement en 2023, republié publiquement en 2026 sous licence MIT
 """
 
 import os
+import sys
 import csv
 import io
 import sqlite3
 import datetime
+import subprocess
+import threading
 from pathlib import Path
+from werkzeug.utils import secure_filename
 from flask import Flask, render_template_string, jsonify, request, send_from_directory, Response
 
 # Ingestion du gestionnaire RTSP multi-caméras
@@ -24,8 +29,82 @@ except Exception as e:
 app = Flask(__name__)
 
 # --- CONFIGURATION ---
+VIDEO_FOLDER = os.getenv("OCULARIS_VIDEO_FOLDER", os.getenv("GM_VIDEO_FOLDER", "./videos_source"))
 OUTPUT_FOLDER = os.getenv("OCULARIS_OUTPUT_FOLDER", os.getenv("GM_OUTPUT_FOLDER", "./resultats_enquete"))
 DB_PATH = f"{OUTPUT_FOLDER}/evidence_db.sqlite"
+
+# Gestion de l'analyse batch en arrière-plan
+analysis_lock = threading.Lock()
+analysis_thread = None
+analysis_status = {
+    'is_running': False,
+    'current_video': None,
+    'current_frame': 0,
+    'total_frames': 0,
+    'percent': 0,
+    'status': 'IDLE',
+    'last_message': '',
+    'start_time': None
+}
+
+
+def _analysis_progress_hook(v_name, current_frame, total_frames, status="PROCESSING"):
+    global analysis_status
+    with analysis_lock:
+        if status == "ALL_DONE":
+            analysis_status['is_running'] = False
+            analysis_status['status'] = 'COMPLETED'
+            analysis_status['current_video'] = None
+            analysis_status['last_message'] = "Analyse forensique terminée avec succès."
+        elif status == "COMPLETED":
+            analysis_status['current_video'] = v_name
+            analysis_status['current_frame'] = total_frames
+            analysis_status['total_frames'] = total_frames
+            analysis_status['percent'] = 100
+            analysis_status['last_message'] = f"Terminé : {v_name}"
+        elif status == "EMPTY":
+            analysis_status['is_running'] = False
+            analysis_status['status'] = 'EMPTY'
+            analysis_status['last_message'] = "Aucune vidéo à analyser."
+        elif status.startswith("ERROR"):
+            analysis_status['is_running'] = False
+            analysis_status['status'] = 'ERROR'
+            analysis_status['last_message'] = f"Erreur : {status}"
+        else:
+            analysis_status['is_running'] = True
+            analysis_status['status'] = 'RUNNING'
+            analysis_status['current_video'] = v_name
+            analysis_status['current_frame'] = current_frame
+            analysis_status['total_frames'] = total_frames
+            pct = int((current_frame / total_frames) * 100) if total_frames > 0 else 0
+            analysis_status['percent'] = max(0, min(100, pct))
+            analysis_status['last_message'] = f"Traitement de {v_name} (frame {current_frame}/{total_frames})..."
+
+
+def _run_background_batch(target_filename=None):
+    global analysis_status
+    with analysis_lock:
+        analysis_status['is_running'] = True
+        analysis_status['status'] = 'STARTING'
+        analysis_status['current_video'] = target_filename or "Tous les fichiers"
+        analysis_status['percent'] = 0
+        analysis_status['last_message'] = "Initialisation du modèle YOLOv8 & scan des fichiers..."
+        analysis_status['start_time'] = datetime.datetime.now().strftime("%H:%M:%S")
+
+    try:
+        from ai_engine import analyze_videos
+        analyze_videos(target_filename=target_filename, progress_callback=_analysis_progress_hook)
+    except Exception as e:
+        with analysis_lock:
+            analysis_status['is_running'] = False
+            analysis_status['status'] = 'ERROR'
+            analysis_status['last_message'] = f"Erreur durant l'analyse : {e}"
+    finally:
+        with analysis_lock:
+            if analysis_status['status'] not in ('COMPLETED', 'ERROR', 'EMPTY'):
+                analysis_status['is_running'] = False
+                analysis_status['status'] = 'COMPLETED'
+                analysis_status['last_message'] = "Analyse terminée."
 
 
 def get_db():
@@ -39,6 +118,7 @@ def get_db():
 def ensure_db():
     """Assure que les tables existent pour éviter les erreurs HTTP 500 au premier démarrage."""
     Path(OUTPUT_FOLDER).mkdir(parents=True, exist_ok=True)
+    Path(VIDEO_FOLDER).mkdir(parents=True, exist_ok=True)
     Path(f"{OUTPUT_FOLDER}/snapshots").mkdir(parents=True, exist_ok=True)
     conn = get_db()
     cursor = conn.cursor()
@@ -384,6 +464,20 @@ HTML_TEMPLATE = """
             .filters { flex-direction: column; }
         }
         
+        /* Video Dropzone & Batch Files */
+        .video-dropzone {
+            border: 2px dashed #94a3b8; border-radius: 12px; padding: 32px 20px;
+            text-align: center; background: #f8fafc; cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .video-dropzone:hover, .video-dropzone.dragover {
+            border-color: #2563eb; background: #eff6ff;
+        }
+        .badge-status-completed { background: #dcfce7; color: #166534; padding: 3px 8px; border-radius: 4px; font-weight: 700; font-size: 11px; }
+        .badge-status-processing { background: #fef3c7; color: #b45309; padding: 3px 8px; border-radius: 4px; font-weight: 700; font-size: 11px; }
+        .badge-status-waiting { background: #f1f5f9; color: #64748b; padding: 3px 8px; border-radius: 4px; font-weight: 700; font-size: 11px; }
+        .badge-status-error { background: #fee2e2; color: #b91c1c; padding: 3px 8px; border-radius: 4px; font-weight: 700; font-size: 11px; }
+
         .footer { text-align: center; padding: 26px 15px; color: #94a3b8; font-size: 13px; font-weight: 500; }
         .footer a { color: #cbd5e1; text-decoration: none; border-bottom: 1px dotted #94a3b8; }
     </style>
@@ -420,8 +514,12 @@ HTML_TEMPLATE = """
                 Flux En Direct (RTSP)
                 <span class="tab-badge live" id="badge-live-count">0 en direct</span>
             </button>
+            <button class="nav-tab-btn" data-tab="tab-videos">
+                Dossier & Dépôt Vidéos
+                <span class="tab-badge" id="badge-videos-count">0</span>
+            </button>
             <button class="nav-tab-btn" data-tab="tab-config">
-                Configuration Cameras IP
+                Configuration Cameras IP & Webcams
             </button>
         </div>
 
@@ -547,7 +645,113 @@ HTML_TEMPLATE = """
             </div>
         </div>
 
-        <!-- TAB 3 : CONFIGURATION DES CAMÉRAS -->
+        <!-- TAB 3 : DOSSIER & DEPOT VIDEOS -->
+        <div id="tab-videos" class="tab-content">
+            <div class="cams-wall-header">
+                <div>
+                    <div class="cams-wall-title">
+                        Dépôt & Archives Vidéos Locales (CCTV / NVR)
+                    </div>
+                    <div style="font-size:12px; color:#64748b; margin-top:3px;">
+                        Déposez vos fichiers vidéo enregistrés (.mp4, .avi, .mkv, .mov, .dav) pour analyse forensique par lot avec YOLOv8 et ByteTrack.
+                    </div>
+                </div>
+                <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                    <button class="btn btn-primary" onclick="openLocalFolder()">
+                        Ouvrir dans l'Explorateur Windows
+                    </button>
+                    <button class="btn btn-outline" id="btn-batch-analyze" onclick="triggerBatchAnalysis()">
+                        Lancer l'Analyse Forensique
+                    </button>
+                    <button class="btn btn-outline" onclick="loadVideosFolder()">
+                        Actualiser
+                    </button>
+                </div>
+            </div>
+
+            <!-- Chemin d'accès local info-bar -->
+            <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:10px 16px; margin-bottom:18px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+                <div style="font-size:12px; color:#334155;">
+                    <span style="font-weight:700; color:#0f172a;">Dossier local sur ce PC :</span> 
+                    <code id="videos-folder-path" style="background:#e2e8f0; padding:2px 8px; border-radius:4px; font-weight:600;">Chargement...</code>
+                </div>
+                <div style="font-size:12px; color:#64748b;" id="videos-folder-summary">
+                    0 vidéo(s) | 0.00 Mo
+                </div>
+            </div>
+
+            <!-- Bannière d'analyse en cours si active -->
+            <div id="analysis-banner" style="display:none; background:#eff6ff; border:1px solid #93c5fd; border-radius:8px; padding:14px 18px; margin-bottom:18px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                    <div style="font-weight:700; color:#1e40af; font-size:13px;" id="analysis-banner-title">
+                        Analyse forensique en cours...
+                    </div>
+                    <div style="font-size:12px; font-weight:700; color:#1d4ed8;" id="analysis-banner-percent">
+                        0%
+                    </div>
+                </div>
+                <div style="background:#dbeafe; border-radius:6px; height:8px; overflow:hidden;">
+                    <div id="analysis-banner-bar" style="background:#2563eb; height:100%; width:0%; transition:width 0.3s;"></div>
+                </div>
+                <div style="font-size:11px; color:#3b82f6; margin-top:6px;" id="analysis-banner-msg">
+                    Initialisation du traitement...
+                </div>
+            </div>
+
+            <!-- Zone de dépôt Drag & Drop -->
+            <div id="video-dropzone" class="video-dropzone" onclick="document.getElementById('video-file-input').click()">
+                <div style="font-size:28px; margin-bottom:8px; font-weight:800; color:#2563eb;">+</div>
+                <div style="font-size:14px; font-weight:700; color:#0f172a; margin-bottom:4px;">
+                    Glissez-déposez vos fichiers vidéo ici
+                </div>
+                <div style="font-size:12px; color:#64748b;">
+                    ou cliquez pour parcourir vos disques et clés USB (Formats supportés : MP4, AVI, MKV, MOV, DAV, FLV, TS)
+                </div>
+                <input type="file" id="video-file-input" multiple accept=".mp4,.avi,.mkv,.mov,.dav,.m4v,.flv,.ts" style="display:none;" onchange="handleFileSelect(event)">
+                
+                <!-- Barre de progression d'upload -->
+                <div id="upload-progress-container" style="display:none; margin-top:14px; width:100%; max-width:400px; margin-left:auto; margin-right:auto;">
+                    <div style="display:flex; justify-content:space-between; font-size:11px; font-weight:700; color:#0f172a; margin-bottom:4px;">
+                        <span id="upload-progress-label">Téléversement...</span>
+                        <span id="upload-progress-pct">0%</span>
+                    </div>
+                    <div style="background:#e2e8f0; border-radius:6px; height:6px; overflow:hidden;">
+                        <div id="upload-progress-bar" style="background:#10b981; height:100%; width:0%; transition:width 0.2s;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Liste des vidéos dans le dossier -->
+            <div class="table-container" style="margin-top:20px; background:white; border:1px solid #e2e8f0; border-radius:10px; overflow:hidden;">
+                <div style="padding:14px 18px; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center; background:#f8fafc;">
+                    <div style="font-weight:700; font-size:13px; color:#0f172a;">Fichiers Vidéos Présents dans le Dossier Source</div>
+                    <div style="font-size:11px; color:#64748b;" id="videos-count-label">0 fichier(s)</div>
+                </div>
+                <div style="overflow-x:auto;">
+                    <table style="width:100%; border-collapse:collapse; text-align:left; font-size:12px;">
+                        <thead>
+                            <tr style="background:#f1f5f9; color:#475569; font-weight:700; border-bottom:1px solid #cbd5e1;">
+                                <th style="padding:10px 14px;">Nom du Fichier</th>
+                                <th style="padding:10px 14px;">Taille</th>
+                                <th style="padding:10px 14px;">Date de Dépôt / Modif</th>
+                                <th style="padding:10px 14px;">Statut Forensique</th>
+                                <th style="padding:10px 14px;">Alertes Générées</th>
+                                <th style="padding:10px 14px; text-align:right;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="videos-table-body">
+                            <tr>
+                                <td colspan="6" style="padding:24px; text-align:center; color:#94a3b8;">
+                                    Aucune vidéo dans le dossier source. Déposez des fichiers ci-dessus ou ouvrez le dossier local dans Windows.
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 4 : CONFIGURATION DES CAMÉRAS -->
         <div id="tab-config" class="tab-content">
             <div class="config-container">
                 <div class="section-header">
@@ -668,9 +872,9 @@ HTML_TEMPLATE = """
 
         <!-- Footer -->
         <div class="footer">
-            © 2026 Ocularis AI — Grade Industriel v1.3.0 | 
-            Système Universel d'Analyse Forensique Vidéo & Surveillance RTSP | 
-            <a href="mailto:contact@connect-gm.com">contact@connect-gm.com</a>
+            © 2023-2026 Ocularis AI — Grade Industriel v1.3.0 | 
+            Conçu en 2023, publié sous Licence MIT en 2026 | 
+            Développeur : Ghemri M (<a href="mailto:contact@connect-gm.com">contact@connect-gm.com</a>)
         </div>
     </div>
 
@@ -887,6 +1091,8 @@ HTML_TEMPLATE = """
             });
             if (tabId === 'tab-live') {
                 renderLiveCameras();
+            } else if (tabId === 'tab-videos') {
+                loadVideosFolder();
             } else if (tabId === 'tab-config') {
                 loadCameras();
             }
@@ -1363,14 +1569,298 @@ HTML_TEMPLATE = """
             loadCameras();
         });
 
+        // --- GESTION DU DOSSIER & DEPOT VIDEOS ---
+        let analysisPollInterval = null;
+
+        function loadVideosFolder() {
+            fetch('/api/videos-folder')
+                .then(r => r.json())
+                .then(data => {
+                    const pathEl = document.getElementById('videos-folder-path');
+                    if (pathEl) pathEl.textContent = data.folder_path || '';
+                    
+                    const countBadge = document.getElementById('badge-videos-count');
+                    if (countBadge) countBadge.textContent = data.total_files || 0;
+                    
+                    const countLabel = document.getElementById('videos-count-label');
+                    if (countLabel) countLabel.textContent = `${data.total_files || 0} fichier(s) détecté(s)`;
+
+                    const sumEl = document.getElementById('videos-folder-summary');
+                    if (sumEl) sumEl.textContent = `${data.total_files || 0} vidéo(s) | ${data.total_size_mb || 0} Mo`;
+
+                    renderVideosTable(data.files || []);
+
+                    // Vérifier état d'analyse
+                    if (data.analysis_state && data.analysis_state.is_running) {
+                        showAnalysisBanner(data.analysis_state);
+                        startAnalysisPolling();
+                    }
+                })
+                .catch(err => console.error("Erreur videos folder:", err));
+        }
+
+        function renderVideosTable(files) {
+            const tbody = document.getElementById('videos-table-body');
+            if (!tbody) return;
+
+            if (!files || files.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="6" style="padding:24px; text-align:center; color:#94a3b8;">
+                            Aucune vidéo dans le dossier source. Déposez des fichiers ci-dessus ou ouvrez le dossier local dans Windows.
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            tbody.innerHTML = files.map(f => {
+                let statusBadge = '<span class="badge-status-waiting">En attente</span>';
+                if (f.is_analyzed) {
+                    statusBadge = '<span class="badge-status-completed">Analysée</span>';
+                } else if (f.status === 'PROCESSING') {
+                    statusBadge = '<span class="badge-status-processing">En cours</span>';
+                } else if (f.status === 'ERROR') {
+                    statusBadge = '<span class="badge-status-error">Erreur</span>';
+                }
+
+                return `
+                    <tr style="border-bottom:1px solid #f1f5f9;">
+                        <td style="padding:10px 14px; font-weight:600; color:#0f172a;">${escapeHtml(f.name)}</td>
+                        <td style="padding:10px 14px; color:#475569;">${f.size_mb} Mo</td>
+                        <td style="padding:10px 14px; color:#64748b;">${escapeHtml(f.modified)}</td>
+                        <td style="padding:10px 14px;">${statusBadge}</td>
+                        <td style="padding:10px 14px; font-weight:700; color:${f.event_count > 0 ? '#dc2626' : '#64748b'};">
+                            ${f.event_count} alerte(s)
+                        </td>
+                        <td style="padding:10px 14px; text-align:right;">
+                            <button class="btn btn-outline" style="padding:4px 9px; font-size:11px;" onclick="triggerBatchAnalysis('${escapeHtml(f.name)}')">
+                                Analyser
+                            </button>
+                            <button class="btn btn-outline" style="padding:4px 9px; font-size:11px; color:#ef4444; border-color:#fca5a5; margin-left:6px;" onclick="deleteVideoFile('${escapeHtml(f.name)}')">
+                                Supprimer
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function openLocalFolder() {
+            fetch('/api/videos-folder/open', { method: 'POST' })
+                .then(r => r.json())
+                .then(res => {
+                    if (res.ok) {
+                        alert("Le dossier local a été ouvert dans l'Explorateur Windows :\n" + res.path);
+                    } else {
+                        alert("Impossible d'ouvrir le dossier : " + (res.error || 'Erreur'));
+                    }
+                })
+                .catch(err => alert("Erreur lors de l'ouverture du dossier : " + err));
+        }
+
+        function handleFileSelect(event) {
+            const files = event.target.files;
+            if (files && files.length > 0) {
+                uploadVideoFiles(files);
+            }
+        }
+
+        function uploadVideoFiles(files) {
+            const formData = new FormData();
+            for (let i = 0; i < files.length; i++) {
+                formData.append('files', files[i]);
+            }
+
+            const pContainer = document.getElementById('upload-progress-container');
+            const pBar = document.getElementById('upload-progress-bar');
+            const pPct = document.getElementById('upload-progress-pct');
+            const pLabel = document.getElementById('upload-progress-label');
+
+            if (pContainer) pContainer.style.display = 'block';
+            if (pLabel) pLabel.textContent = `Téléversement de ${files.length} fichier(s)...`;
+
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', '/api/videos-folder/upload', true);
+
+            xhr.upload.onprogress = (e) => {
+                if (e.lengthComputable) {
+                    const percent = Math.round((e.loaded / e.total) * 100);
+                    if (pBar) pBar.style.width = percent + '%';
+                    if (pPct) pPct.textContent = percent + '%';
+                }
+            };
+
+            xhr.onload = () => {
+                if (xhr.status === 200) {
+                    if (pLabel) pLabel.textContent = "Téléversement terminé avec succès !";
+                    if (pBar) pBar.style.width = '100%';
+                    if (pPct) pPct.textContent = '100%';
+                    setTimeout(() => {
+                        if (pContainer) pContainer.style.display = 'none';
+                        if (pBar) pBar.style.width = '0%';
+                    }, 2000);
+                    loadVideosFolder();
+                } else {
+                    let err = "Erreur de téléversement";
+                    try {
+                        const r = JSON.parse(xhr.responseText);
+                        err = r.error || err;
+                    } catch(e){}
+                    alert(err);
+                    if (pContainer) pContainer.style.display = 'none';
+                }
+            };
+
+            xhr.onerror = () => {
+                alert("Erreur réseau durant le téléversement.");
+                if (pContainer) pContainer.style.display = 'none';
+            };
+
+            xhr.send(formData);
+        }
+
+        function triggerBatchAnalysis(filename = null) {
+            const btn = document.getElementById('btn-batch-analyze');
+            if (btn) btn.disabled = true;
+
+            fetch('/api/videos-folder/analyze', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ filename: filename })
+            })
+            .then(r => r.json())
+            .then(res => {
+                if (res.ok) {
+                    startAnalysisPolling();
+                } else {
+                    alert(res.error || "Impossible de démarrer l'analyse.");
+                    if (btn) btn.disabled = false;
+                }
+            })
+            .catch(err => {
+                alert("Erreur réseau : " + err);
+                if (btn) btn.disabled = false;
+            });
+        }
+
+        function startAnalysisPolling() {
+            if (analysisPollInterval) clearInterval(analysisPollInterval);
+            checkAnalysisStatus();
+            analysisPollInterval = setInterval(checkAnalysisStatus, 2000);
+        }
+
+        function checkAnalysisStatus() {
+            fetch('/api/videos-folder/analyze-status')
+                .then(r => r.json())
+                .then(st => {
+                    showAnalysisBanner(st);
+                    if (!st.is_running) {
+                        if (analysisPollInterval) {
+                            clearInterval(analysisPollInterval);
+                            analysisPollInterval = null;
+                        }
+                        const btn = document.getElementById('btn-batch-analyze');
+                        if (btn) btn.disabled = false;
+                        loadVideosFolder();
+                        loadStats();
+                        loadEvents();
+                    }
+                })
+                .catch(err => console.error("Erreur check analysis:", err));
+        }
+
+        function showAnalysisBanner(st) {
+            const banner = document.getElementById('analysis-banner');
+            if (!banner) return;
+
+            if (st.is_running) {
+                banner.style.display = 'block';
+                document.getElementById('analysis-banner-title').textContent = 
+                    st.current_video ? `Analyse forensique : ${st.current_video}` : "Analyse forensique en cours...";
+                document.getElementById('analysis-banner-percent').textContent = (st.percent || 0) + '%';
+                document.getElementById('analysis-banner-bar').style.width = (st.percent || 0) + '%';
+                document.getElementById('analysis-banner-msg').textContent = st.last_message || "Traitement...";
+            } else if (st.status === 'COMPLETED') {
+                banner.style.display = 'block';
+                banner.style.background = '#dcfce7';
+                banner.style.borderColor = '#86efac';
+                document.getElementById('analysis-banner-title').textContent = "Analyse forensique terminée";
+                document.getElementById('analysis-banner-title').style.color = '#166534';
+                document.getElementById('analysis-banner-percent').textContent = '100%';
+                document.getElementById('analysis-banner-bar').style.width = '100%';
+                document.getElementById('analysis-banner-bar').style.background = '#16a34a';
+                document.getElementById('analysis-banner-msg').textContent = st.last_message || "Les événements sont disponibles dans le Journal Forensique.";
+                document.getElementById('analysis-banner-msg').style.color = '#15803d';
+                setTimeout(() => { banner.style.display = 'none'; }, 5000);
+            } else if (st.status === 'ERROR') {
+                banner.style.display = 'block';
+                banner.style.background = '#fee2e2';
+                banner.style.borderColor = '#fca5a5';
+                document.getElementById('analysis-banner-title').textContent = "Erreur d'analyse";
+                document.getElementById('analysis-banner-title').style.color = '#b91c1c';
+                document.getElementById('analysis-banner-msg').textContent = st.last_message || "Une erreur est survenue.";
+                document.getElementById('analysis-banner-msg').style.color = '#dc2626';
+            } else {
+                banner.style.display = 'none';
+            }
+        }
+
+        function deleteVideoFile(filename) {
+            if (!confirm(`Supprimer définitivement le fichier "${filename}" du dossier source ?`)) return;
+
+            fetch('/api/videos-folder/delete', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ filename: filename })
+            })
+            .then(r => r.json())
+            .then(res => {
+                if (res.ok) {
+                    loadVideosFolder();
+                } else {
+                    alert(res.error || "Erreur lors de la suppression.");
+                }
+            })
+            .catch(err => alert("Erreur réseau : " + err));
+        }
+
+        // Configuration Drag and Drop pour la zone de dépôt
+        const dropzone = document.getElementById('video-dropzone');
+        if (dropzone) {
+            ['dragenter', 'dragover'].forEach(eventName => {
+                dropzone.addEventListener(eventName, (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    dropzone.classList.add('dragover');
+                }, false);
+            });
+            ['dragleave', 'drop'].forEach(eventName => {
+                dropzone.addEventListener(eventName, (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    dropzone.classList.remove('dragover');
+                }, false);
+            });
+            dropzone.addEventListener('drop', (e) => {
+                const dt = e.dataTransfer;
+                const files = dt.files;
+                if (files && files.length > 0) {
+                    uploadVideoFiles(files);
+                }
+            }, false);
+        }
+
         // Chargement initial et rafraîchissement périodique
         renderTargetClassPills('form');
         loadStats();
         loadEvents();
         loadCameras();
+        loadVideosFolder();
         setInterval(loadStats, 5000);
         setInterval(loadEvents, 3000);
         setInterval(loadCameras, 8000);
+        setInterval(loadVideosFolder, 15000);
 
         window.addEventListener('click', (e) => {
             const cm = document.getElementById('classesModal');
@@ -1776,6 +2266,177 @@ def stream_camera(camera_id):
         rtsp_manager.generate_mjpeg_stream(camera_id, annotated=annotated),
         mimetype='multipart/x-mixed-replace; boundary=frame'
     )
+
+
+# --- ROUTES GESTION DU DOSSIER & DEPOT VIDEOS ---
+
+@app.route('/api/videos-folder')
+def get_videos_folder_info_route():
+    """Liste les vidéos présentes dans le dossier videos_source avec leur statut forensique."""
+    abs_folder = Path(VIDEO_FOLDER)
+    abs_folder.mkdir(parents=True, exist_ok=True)
+
+    extensions = {'.mp4', '.avi', '.mkv', '.mov', '.dav', '.m4v', '.flv', '.ts'}
+    files_info = []
+
+    # Interrogation DB pour savoir quelles vidéos sont déjà traitées
+    analyzed_map = {}
+    try:
+        conn = get_db()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT v.filename, v.status, v.processed_date, v.total_frames, v.fps,
+                   COUNT(e.id) as event_count
+            FROM videos v
+            LEFT JOIN events e ON v.id = e.video_id
+            GROUP BY v.id
+        """)
+        for row in cursor.fetchall():
+            analyzed_map[row['filename']] = {
+                'status': row['status'],
+                'processed_date': row['processed_date'],
+                'total_frames': row['total_frames'],
+                'fps': row['fps'],
+                'event_count': row['event_count']
+            }
+        conn.close()
+    except Exception as e:
+        pass
+
+    total_size_bytes = 0
+    for p in sorted(abs_folder.rglob('*')):
+        if p.is_file() and p.suffix.lower() in extensions:
+            try:
+                rel_name = str(p.relative_to(abs_folder)).replace("\\", "/")
+            except ValueError:
+                rel_name = p.name
+
+            stat = p.stat()
+            size_mb = round(stat.st_size / (1024 * 1024), 2)
+            total_size_bytes += stat.st_size
+            mod_time = datetime.datetime.fromtimestamp(stat.st_mtime).strftime("%Y-%m-%d %H:%M:%S")
+
+            db_info = analyzed_map.get(rel_name) or analyzed_map.get(p.name)
+            is_analyzed = (db_info is not None and db_info['status'] == 'COMPLETED')
+            event_count = db_info['event_count'] if db_info else 0
+            status_label = db_info['status'] if db_info else "EN_ATTENTE"
+
+            files_info.append({
+                'name': p.name,
+                'relative_path': rel_name,
+                'size_mb': size_mb,
+                'modified': mod_time,
+                'is_analyzed': is_analyzed,
+                'status': status_label,
+                'event_count': event_count
+            })
+
+    total_size_mb = round(total_size_bytes / (1024 * 1024), 2)
+    with analysis_lock:
+        state_copy = dict(analysis_status)
+
+    return jsonify({
+        'folder_path': str(abs_folder.resolve()),
+        'total_files': len(files_info),
+        'total_size_mb': total_size_mb,
+        'files': files_info,
+        'analysis_state': state_copy
+    })
+
+
+@app.route('/api/videos-folder/open', methods=['POST'])
+def open_videos_folder_route():
+    """Ouvre le dossier local videos_source dans l'Explorateur de fichiers de l'OS."""
+    abs_path = os.path.abspath(VIDEO_FOLDER)
+    os.makedirs(abs_path, exist_ok=True)
+    try:
+        if sys.platform == 'win32' or os.name == 'nt':
+            os.startfile(abs_path)
+        elif sys.platform == 'darwin':
+            subprocess.Popen(['open', abs_path])
+        else:
+            subprocess.Popen(['xdg-open', abs_path])
+        return jsonify({'ok': True, 'path': abs_path})
+    except Exception as e:
+        return jsonify({'ok': False, 'error': str(e), 'path': abs_path}), 500
+
+
+@app.route('/api/videos-folder/upload', methods=['POST'])
+def upload_video_file_route():
+    """Permet de téléverser des vidéos directement dans videos_source via drag-and-drop web."""
+    uploaded_files = request.files.getlist('files') or request.files.getlist('video') or [request.files.get('file')]
+    saved = []
+    abs_folder = Path(VIDEO_FOLDER)
+    abs_folder.mkdir(parents=True, exist_ok=True)
+
+    allowed_exts = {'.mp4', '.avi', '.mkv', '.mov', '.dav', '.m4v', '.flv', '.ts'}
+
+    for f in uploaded_files:
+        if not f or not f.filename:
+            continue
+        fname = secure_filename(f.filename)
+        if not fname:
+            continue
+        ext = os.path.splitext(fname)[1].lower()
+        if ext not in allowed_exts:
+            continue
+        dest_path = abs_folder / fname
+        f.save(str(dest_path))
+        saved.append(fname)
+
+    if not saved:
+        return jsonify({'error': "Aucun fichier valide téléversé (extensions autorisées : .mp4, .avi, .mkv, .mov, .dav, .m4v, .flv, .ts)"}), 400
+
+    return jsonify({'ok': True, 'saved': saved, 'total': len(saved)})
+
+
+@app.route('/api/videos-folder/delete', methods=['POST'])
+def delete_video_file_route():
+    """Supprime un fichier vidéo de videos_source."""
+    data = request.get_json(silent=True) or {}
+    filename = data.get('filename')
+    if not filename:
+        return jsonify({'error': "Nom de fichier requis."}), 400
+
+    clean_name = os.path.basename(filename)
+    target = Path(VIDEO_FOLDER) / clean_name
+    if not target.exists() or not target.is_file():
+        return jsonify({'error': f"Fichier '{clean_name}' introuvable."}), 404
+
+    try:
+        target.unlink()
+        return jsonify({'ok': True, 'filename': clean_name})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/videos-folder/analyze', methods=['POST'])
+def trigger_batch_analysis_route():
+    """Démarre l'analyse forensique des vidéos en arrière-plan."""
+    global analysis_thread
+    with analysis_lock:
+        if analysis_status['is_running']:
+            return jsonify({'error': "Une analyse forensique est déjà en cours d'exécution.", 'status': analysis_status}), 409
+
+    data = request.get_json(silent=True) or {}
+    target_filename = data.get('filename')
+
+    analysis_thread = threading.Thread(
+        target=_run_background_batch,
+        args=(target_filename,),
+        name="Ocularis-Batch-Analysis",
+        daemon=True
+    )
+    analysis_thread.start()
+
+    return jsonify({'ok': True, 'started': True, 'target': target_filename or 'all'})
+
+
+@app.route('/api/videos-folder/analyze-status')
+def get_analysis_status_route():
+    """Retourne l'état en direct de l'analyse vidéo en arrière-plan."""
+    with analysis_lock:
+        return jsonify(analysis_status)
 
 
 if __name__ == '__main__':

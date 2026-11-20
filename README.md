@@ -4,6 +4,7 @@
 > **Statut :** Production / Grade Industriel  
 > **Contexte :** Système Universel d'Analyse Vidéo Forensique & Surveillance Temps Réel CCTV  
 > **Développeur :** Ghemri M (`contact@connect-gm.com`)  
+> **Historique :** Version initiale conçue et développée en 2023. Nouvelle publication publique sous licence open-source MIT sur le compte GitHub `MGhemri` en 2026.  
 
 ---
 
@@ -11,7 +12,7 @@
 
 **Ocularis AI** est une solution logicielle de vision par ordinateur dediee a la videosurveillance (**CCTV**), combinant **l'analyse forensique d'archives volumineuses** et **la surveillance continue de flux RTSP / cameras IP et webcams en direct**.
 
-Concu pour les audits de securite, les centres de controle et les enquetes sur incidents, le systeme exploite les modeles **YOLOv8** associes a l'algorithme de suivi multi-objets **ByteTrack** pour detecter, suivre, classifier et documenter les anomalies sans latence d'accumulation.
+Concu a l'origine en **2023** pour repondre aux besoins d'investigation rapide sur incidents CCTV, le projet fait l'objet d'une nouvelle publication officielle et ouverte en **2026** sous licence **MIT** par **Ghemri M** sur le depot [MGhemri/Ocularis-AI](https://github.com/MGhemri/Ocularis-AI). Le systeme exploite les modeles **YOLOv8** associes a l'algorithme de suivi multi-objets **ByteTrack** pour detecter, suivre, classifier et documenter les anomalies sans latence d'accumulation.
 
 ---
 
@@ -30,13 +31,19 @@ Concu pour les audits de securite, les centres de controle et les enquetes sur i
 *   **Outil de Diagnostic Reseau Integre :** Verification immediate de la connectivite RTSP / webcam (`/api/cameras/test`) avec restitution de la resolution, du debit d'images et du statut de reponse.
 *   **Prereglages Constructeurs 1-Clic :** Profils preconfigures pour cameras Dahua, Hikvision, Uniview, Axis, Webcam PC Integree (`0`) et Webcam USB Externe (`1`).
 
-### 2.2. Analyse Forensique d'Archives Video
+### 2.2. Depot & Gestion des Videos Locales depuis l'Interface
+*   **Onglet Dedie Dossier & Depot Videos :** Gestion complete des enregistrements depuis le navigateur avec statistiques d'espace disque et comptage des fichiers.
+*   **Bouton d'Ouverture du Dossier Local :** Un clic ouvre directement le repertoire `videos_source` dans l'Explorateur Windows du PC hote pour y copier facilement des enregistrements depuis une cle USB ou un NVR.
+*   **Zone de Glisser-Deposer (Drag & Drop) Web :** Televersement direct de fichiers video volumineux (`.mp4`, `.avi`, `.mkv`, `.mov`, `.dav`, `.flv`, `.ts`) avec suivi de progression en temps reel.
+*   **Lancement de l'Analyse Forensique depuis l'Interface :** Declenchement du traitement par lot ou fichier par fichier en arriere-plan, avec barre d'avancement dynamique et actualisation automatique du journal des preuves.
+
+### 2.3. Analyse Forensique d'Archives Video
 *   **Traitement Sequentiel Optimise :** Saut rapide d'images par `cap.grab()` (OpenCV) sans deballage lourd, augmentant le debit de traitement de 3x a 10x sur les codecs H.264/H.265 et conteneurs proprietaires Dahua `.dav`.
 *   **Suivi Multi-Objets & Anti-Flooding :** Association d'identifiants persistants (`track_id`) et fenetre de temporisation parametrable (`COOLDOWN_SECONDS = 3.5s`) pour eviter la multiplication de captures redondantes sur des cibles statiques.
 *   **Correlation Spatiale Personne / Objet :** Detection de manipulation et de transport d'objets lourds ou sensibles (valises, sacs, ecrans, ordinateurs portables) avec graduation de la severite (**CRITIQUE**, **SUSPECT**, **INFO**).
 *   **Exploration Recursive des Repertoires NVR :** Prise en charge automatique des arborescences de stockage CCTV (`Cam_01/2026-11-20/...`).
 
-### 2.3. Chaine de Traitement Forensique & Rapports
+### 2.4. Chaine de Traitement Forensique & Rapports
 *   **Qualification Judiciaire des Preuves :** Marquage direct par l'analyste (*Preuve Retenue*, *Faux Positif*, *Notes d'enquete*) consigne dans la base SQLite WAL.
 *   **Rapport d'Investigation Officiel (`/report`) :** Synthese d'audit imprimable et exportable en PDF avec metriques d'incidents et zones de visa d'autorite.
 *   **Export Forensique CSV (`/api/export/csv`) :** Registre conforme RFC-4180 avec empreintes SHA-256 des fichiers sources et marqueur d'origine `FLUX_DIRECT_RTSP`.
@@ -145,5 +152,6 @@ python ai_engine.py --batch
 *   **Développeur :** Ghemri M (`GHEMRI M`)
 *   **Courriel Professionnel :** `contact@connect-gm.com`
 *   **Depot GitHub Officiel :** [https://github.com/MGhemri/Ocularis-AI](https://github.com/MGhemri/Ocularis-AI)
+*   **Historique :** Projet initialement conçu et développé en 2023 par Ghemri M. Republié publiquement en 2026 sous licence open-source MIT sur le compte GitHub `MGhemri`.
 
-**Copyright (c) 2026 Ghemri M — Licence MIT — Tous droits reserves.**
+**Copyright (c) 2023-2026 Ghemri M — Licence MIT — Tous droits reserves.**

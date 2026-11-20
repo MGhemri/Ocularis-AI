@@ -2,7 +2,7 @@
 
 > **Version:** 1.1.0 (Stable / Enhanced Forensic)  
 > **Statut:** Production / Grade Industriel  
-> **Contexte:** Audit de sécurité & investigation forensique — Village Olympique (EGCSO Oran)  
+> **Contexte:** Système Universel d'Analyse Vidéo Forensique & Audit CCTV  
 > **Auteur :** Ghemri M (`contact@connect-gm.com` / `+213 549 777 366`)  
 
 ---
@@ -114,7 +114,6 @@ OCULARIS-AI/
 ## 📞 Support & Contacts Officiels
 
 *   **Auteur & Responsable Système :** Ghemri M (`GHEMRI M`)
-*   **Organisation :** Complexe Olympique d'Oran (EGCSO)
 *   **Email :** `contact@connect-gm.com`
 *   **Téléphone :** `+213 549 777 366`
 *   **Dépôt GitHub :** [https://github.com/MGhemri](https://github.com/MGhemri)

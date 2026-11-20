@@ -1,7 +1,7 @@
 """
 OCULARIS AI - INTERFACE WEB FORENSIQUE (FRONTEND)
 Version 1.1.0 - Grade Industriel - Dashboard Enquêteur & Rapports Officiels
-Contexte : Audit de Sécurité du Village Olympique (EGCSO Oran)
+Système Universel d'Analyse Forensique Vidéo & Audit CCTV
 Auteur : Ghemri M (contact@connect-gm.com / +213 549 777 366)
 """
 
@@ -255,7 +255,7 @@ HTML_TEMPLATE = """
                 <div class="logo">OC</div>
                 <div class="brand-text">
                     <h1>Ocularis AI</h1>
-                    <p>Système Forensique & Audit Vidéo v1.1.0 — Village Olympique (EGCSO)</p>
+                    <p>Système Universel d'Analyse Forensique & Audit Vidéo v1.1.0</p>
                 </div>
             </div>
             <div class="header-actions">
@@ -374,7 +374,7 @@ HTML_TEMPLATE = """
         <!-- Footer -->
         <div class="footer">
             © 2026 Ocularis AI — Grade Industriel v1.1.0 | 
-            Développé pour l'Audit de Sécurité du Village Olympique (EGCSO) | 
+            Système Universel d'Analyse Forensique Vidéo | 
             <a href="mailto:contact@connect-gm.com">contact@connect-gm.com</a> | 
             <a href="tel:+213549777366">+213 549 777 366</a>
         </div>
@@ -650,7 +650,7 @@ REPORT_TEMPLATE = """
     <div class="header">
         <div class="title">
             <h1>RAPPORT FORENSIQUE D'INVESTIGATION VIDÉO</h1>
-            <p>Ocularis AI — Audit de Sécurité du Village Olympique (EGCSO Oran)</p>
+            <p>Ocularis AI — Système Universel d'Analyse Forensique Vidéo</p>
         </div>
         <div style="text-align: right; font-size: 13px; color: #64748b;">
             <b>Date d'édition :</b> {{ now }}<br>
@@ -722,7 +722,7 @@ REPORT_TEMPLATE = """
             <p style="font-size: 13px;">Nom : Ghemri M<br>Qualité : Responsable Système GM-Connect</p>
         </div>
         <div class="sig-box">
-            <div class="sig-title">Visa Direction de la Sécurité (EGCSO Oran)</div>
+            <div class="sig-title">Visa Direction de la Sécurité / Autorité Compétente</div>
             <p style="font-size: 13px;">Date : ............................................<br>Signature & Cachet :</p>
         </div>
     </div>
@@ -950,7 +950,7 @@ if __name__ == '__main__':
 
     print("=" * 66)
     print("🚀 OCULARIS AI — Interface Web Forensique v1.1.0")
-    print("   Audit de Sécurité du Village Olympique (EGCSO)")
+    print("   Système Universel d'Analyse Forensique Vidéo & Audit CCTV")
     print("=" * 66)
     print(f"📡 Serveur actif sur : http://localhost:{port}")
     print(f"📄 Rapport d'enquête : http://localhost:{port}/report")

@@ -2,7 +2,7 @@
 OCULARIS AI - MOTEUR D'ANALYSE FORENSIQUE (BACKEND)
 Version 1.1.0 - Grade Industriel - Optimisé GPU NVIDIA RTX / CUDA
 Détection intelligente, Multi-Object Tracking (ByteTrack) & Anti-Flooding
-Contexte : Audit de Sécurité du Village Olympique (EGCSO Oran)
+Système Universel d'Analyse Forensique Vidéo & Audit CCTV
 Auteur : Ghemri M (contact@connect-gm.com / +213 549 777 366)
 """
 
@@ -148,7 +148,7 @@ def send_telegram_alert(video_name, timestamp_str, severity, obj_classes, person
             f"⏱ <b>Timestamp :</b> {timestamp_str}\n"
             f"👥 <b>Personnes :</b> {person_count}\n"
             f"🎯 <b>Objets :</b> {obj_classes}\n"
-            f"📍 <i>Village Olympique (EGCSO)</i>"
+            f"📍 <i>Ocularis AI Surveillance</i>"
         )
         url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendPhoto"
         

@@ -3,7 +3,7 @@ title LANCEUR OCULARIS AI
 color 0A
 echo ========================================================
 echo   DEMARRAGE DU SYSTEME OCULARIS AI (V1.1.0)
-echo   Audit Forensique Video - Village Olympique
+echo   Systeme Universel d'Analyse Forensique Video
 echo ========================================================
 
 set "PYTHON_EXE=python"

@@ -16,7 +16,7 @@ def main():
 
     print("=" * 60)
     print("🚀 DÉMARRAGE DU SYSTÈME OCULARIS AI v1.1.0")
-    print("   Audit Forensique Vidéo — Village Olympique (EGCSO)")
+    print("   Système Universel d'Analyse Forensique Vidéo")
     print("=" * 60)
 
     # Détection automatique de l'environnement virtuel .venv

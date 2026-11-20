@@ -1,0 +1,29 @@
+# Python & Virtual Environments
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+build/
+dist/
+*.egg-info/
+
+# Forensic Investigation Results & Database (Local Only)
+resultats_enquete/
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+*.db
+
+# Video Sources (keep directory via .gitkeep)
+videos_source/*
+!videos_source/.gitkeep
+
+# IDEs & System
+.idea/
+.vscode/
+*.swp
+*.bak
+.DS_Store
+Thumbs.db

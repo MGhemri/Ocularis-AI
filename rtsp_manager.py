@@ -46,6 +46,29 @@ CLASSES_VEHICLES = {1, 2, 3, 5, 7}
 CLASSES_SUSPECT_OBJECTS = {24, 26, 28, 62, 63, 67}
 TARGET_CLASSES = [0, 1, 2, 3, 5, 7, 24, 26, 28, 62, 63, 67]
 
+# Dictionnaire exhaustif des cibles sélectionnables depuis l'interface web
+SUPPORTED_DETECTION_CLASSES = {
+    'person': 0,
+    'bicycle': 1,
+    'car': 2,
+    'motorcycle': 3,
+    'bus': 5,
+    'truck': 7,
+    'cat': 15,
+    'dog': 16,
+    'backpack': 24,
+    'handbag': 26,
+    'suitcase': 28,
+    'tv': 62,
+    'laptop': 63,
+    'cell phone': 67
+}
+
+DEFAULT_TARGET_CLASSES = [
+    'person', 'backpack', 'handbag', 'suitcase',
+    'cell phone', 'laptop', 'tv', 'car', 'motorcycle', 'bicycle'
+]
+
 # Seuils par défaut
 CONF_THRESHOLD = float(os.getenv("OCULARIS_CONF_THRESHOLD", os.getenv("GM_CONF_THRESHOLD", "0.40")))
 MIN_OBJECT_AREA_RATIO = float(os.getenv("OCULARIS_MIN_OBJ_RATIO", os.getenv("GM_MIN_OBJ_RATIO", "0.005")))
@@ -210,13 +233,18 @@ class RTSPStreamReader:
     """
 
     def __init__(self, camera_id: str, name: str, url: str, enabled: bool = True,
-                 fps_analyze: float = 2.0, cooldown_sec: float = 3.5):
+                 fps_analyze: float = 2.0, cooldown_sec: float = 3.5,
+                 conf_threshold: float = 0.35, trigger_mode: str = "ANY_TARGET",
+                 target_classes: list = None):
         self.camera_id = camera_id
         self.name = name
         self.url = url
         self.enabled = enabled
         self.fps_analyze = max(0.5, float(fps_analyze))
-        self.cooldown_sec = max(1.0, float(cooldown_sec))
+        self.cooldown_sec = max(0.5, float(cooldown_sec))
+        self.conf_threshold = max(0.15, min(0.95, float(conf_threshold)))
+        self.trigger_mode = trigger_mode if trigger_mode in ("ANY_TARGET", "FORENSIC") else "ANY_TARGET"
+        self.target_classes = list(target_classes) if target_classes is not None else list(DEFAULT_TARGET_CLASSES)
 
         self.status = "STOPPED"  # STOPPED, CONNECTING, LIVE, RECONNECTING, ERROR
         self.error_message = ""
@@ -354,6 +382,9 @@ class RTSPStreamReader:
             'enabled': self.enabled,
             'fps_analyze': self.fps_analyze,
             'cooldown_sec': self.cooldown_sec,
+            'conf_threshold': self.conf_threshold,
+            'trigger_mode': self.trigger_mode,
+            'target_classes': self.target_classes,
             'status': self.status,
             'error_message': self.error_message,
             'fps_actual': self.fps_actual,
@@ -461,6 +492,9 @@ class MultiCameraRTSPManager:
                 enabled = bool(item.get("enabled", True))
                 fps_analyze = float(item.get("fps_analyze", 2.0))
                 cooldown_sec = float(item.get("cooldown_sec", 3.5))
+                conf_threshold = float(item.get("conf_threshold", 0.35))
+                trigger_mode = item.get("trigger_mode", "ANY_TARGET")
+                target_classes = item.get("target_classes", None)
 
                 if cam_id in self.streams:
                     # Mise à jour à chaud sans interrompre si l'URL n'a pas changé
@@ -468,6 +502,10 @@ class MultiCameraRTSPManager:
                     stream.name = name
                     stream.fps_analyze = fps_analyze
                     stream.cooldown_sec = cooldown_sec
+                    stream.conf_threshold = conf_threshold
+                    stream.trigger_mode = trigger_mode
+                    if target_classes is not None:
+                        stream.target_classes = list(target_classes)
                     if stream.url != url:
                         stream.stop()
                         stream.url = url
@@ -486,7 +524,10 @@ class MultiCameraRTSPManager:
                         url=url,
                         enabled=enabled,
                         fps_analyze=fps_analyze,
-                        cooldown_sec=cooldown_sec
+                        cooldown_sec=cooldown_sec,
+                        conf_threshold=conf_threshold,
+                        trigger_mode=trigger_mode,
+                        target_classes=target_classes
                     )
                     self.streams[cam_id] = stream
 
@@ -507,7 +548,10 @@ class MultiCameraRTSPManager:
                     "url": stream.url,
                     "enabled": stream.enabled,
                     "fps_analyze": stream.fps_analyze,
-                    "cooldown_sec": stream.cooldown_sec
+                    "cooldown_sec": stream.cooldown_sec,
+                    "conf_threshold": stream.conf_threshold,
+                    "trigger_mode": stream.trigger_mode,
+                    "target_classes": stream.target_classes
                 })
 
         try:
@@ -540,6 +584,9 @@ class MultiCameraRTSPManager:
         enabled = bool(data.get("enabled", True))
         fps_analyze = float(data.get("fps_analyze", 2.0))
         cooldown_sec = float(data.get("cooldown_sec", 3.5))
+        conf_threshold = float(data.get("conf_threshold", 0.35))
+        trigger_mode = str(data.get("trigger_mode", "ANY_TARGET"))
+        target_classes = data.get("target_classes", None)
 
         with self.streams_lock:
             old_url = self.streams[cam_id].url if cam_id in self.streams else ""
@@ -550,6 +597,10 @@ class MultiCameraRTSPManager:
                 stream.name = name
                 stream.fps_analyze = fps_analyze
                 stream.cooldown_sec = cooldown_sec
+                stream.conf_threshold = conf_threshold
+                stream.trigger_mode = trigger_mode
+                if target_classes is not None:
+                    stream.target_classes = list(target_classes)
                 url_changed = (stream.url != url)
                 stream.url = url
                 stream.enabled = enabled
@@ -568,11 +619,39 @@ class MultiCameraRTSPManager:
                     url=url,
                     enabled=enabled,
                     fps_analyze=fps_analyze,
-                    cooldown_sec=cooldown_sec
+                    cooldown_sec=cooldown_sec,
+                    conf_threshold=conf_threshold,
+                    trigger_mode=trigger_mode,
+                    target_classes=target_classes
                 )
                 self.streams[cam_id] = stream
                 if enabled:
                     stream.start()
+
+        self.save_configuration()
+        return stream
+
+    def update_camera_classes(self, cam_id: str, data: dict) -> RTSPStreamReader:
+        """Met à jour à chaud les cibles, seuils et modes d'une caméra."""
+        with self.streams_lock:
+            stream = self.streams.get(cam_id)
+            if not stream:
+                raise KeyError(f"Caméra '{cam_id}' introuvable.")
+
+            if 'target_classes' in data and isinstance(data['target_classes'], list):
+                cleaned = [c for c in data['target_classes'] if c in SUPPORTED_DETECTION_CLASSES]
+                if cleaned:
+                    stream.target_classes = cleaned
+            if 'conf_threshold' in data:
+                stream.conf_threshold = max(0.15, min(0.95, float(data['conf_threshold'])))
+            if 'trigger_mode' in data:
+                mode = str(data['trigger_mode'])
+                if mode in ("ANY_TARGET", "FORENSIC"):
+                    stream.trigger_mode = mode
+            if 'fps_analyze' in data:
+                stream.fps_analyze = max(0.5, min(10.0, float(data['fps_analyze'])))
+            if 'cooldown_sec' in data:
+                stream.cooldown_sec = max(0.5, min(30.0, float(data['cooldown_sec'])))
 
         self.save_configuration()
         return stream
@@ -683,19 +762,27 @@ class MultiCameraRTSPManager:
             time.sleep(0.01)
 
     def _process_stream_frame(self, stream: RTSPStreamReader, frame):
-        """Exécute YOLO + ByteTrack et enregistre les événements détectés."""
+        """Exécute YOLO + ByteTrack selon les classes configurées et enregistre les événements."""
+        # Résolution dynamique des classes cibles sélectionnées pour cette caméra
+        target_names = stream.target_classes if (hasattr(stream, 'target_classes') and stream.target_classes) else DEFAULT_TARGET_CLASSES
+        active_class_ids = [SUPPORTED_DETECTION_CLASSES[name] for name in target_names if name in SUPPORTED_DETECTION_CLASSES]
+        if not active_class_ids:
+            active_class_ids = [0]  # Au moins personne par sécurité si tout est décoché
+
+        conf = getattr(stream, 'conf_threshold', 0.35) or 0.35
+
         try:
             results = self.model.track(
                 frame,
                 persist=True,
-                classes=TARGET_CLASSES,
-                conf=CONF_THRESHOLD,
+                classes=active_class_ids,
+                conf=conf,
                 verbose=False,
                 device=self.device,
                 tracker="bytetrack.yaml"
             )
         except Exception:
-            results = self.model(frame, classes=TARGET_CLASSES, conf=CONF_THRESHOLD, verbose=False, device=self.device)
+            results = self.model(frame, classes=active_class_ids, conf=conf, verbose=False, device=self.device)
 
         if not results or len(results) == 0:
             return
@@ -719,9 +806,9 @@ class MultiCameraRTSPManager:
             for box in results[0].boxes:
                 cls_id = int(box.cls[0])
                 label = self.model.names.get(cls_id, str(cls_id))
-                conf = float(box.conf[0])
-                if conf > max_conf:
-                    max_conf = conf
+                conf_val = float(box.conf[0])
+                if conf_val > max_conf:
+                    max_conf = conf_val
 
                 detected_objs.append(label)
 
@@ -743,12 +830,16 @@ class MultiCameraRTSPManager:
                     if box_area >= min_obj_pixels:
                         suspect_obj_boxes.append((bx1, by1, bx2, by2))
 
-        # Règles de sévérité forensique
-        is_alert = False
-        severity = "SUSPICIOUS"
-        alert_reason = ""
+        if not detected_objs:
+            return
 
-        # 1. Règle CRITIQUE : Personne avec objet lourd ou de valeur
+        # Règles de sévérité forensique et déclenchement selon le mode choisi
+        is_alert = False
+        severity = "INFO"
+        alert_reason = ""
+        trigger_mode = getattr(stream, 'trigger_mode', 'ANY_TARGET')
+
+        # 1. Règle CRITIQUE : Personne avec objet sensible ou manipulation
         if person_count >= 1 and len(suspect_obj_boxes) > 0:
             if check_person_object_proximity(person_boxes, suspect_obj_boxes, PERSON_OBJ_MAX_DISTANCE_PX):
                 is_alert = True
@@ -761,11 +852,31 @@ class MultiCameraRTSPManager:
             severity = "SUSPICIOUS"
             alert_reason = "SUSPICIOUS_GROUP"
 
-        # 3. Règle VÉHICULE : Présence de véhicule
-        if not is_alert and len(vehicle_boxes) > 0:
-            is_alert = True
-            severity = "INFO"
-            alert_reason = "VEHICLE_DETECTED"
+        # 3. Mode Détection Immédiate (ANY_TARGET) : Alerte dès qu'une cible sélectionnée apparaît
+        if trigger_mode == "ANY_TARGET" and not is_alert:
+            if person_count >= 1:
+                is_alert = True
+                severity = "SUSPICIOUS"
+                alert_reason = "PERSON_DETECTED"
+            elif len(suspect_obj_boxes) > 0:
+                is_alert = True
+                severity = "SUSPICIOUS"
+                alert_reason = "SUSPECT_OBJECT_DETECTED"
+            elif len(vehicle_boxes) > 0:
+                is_alert = True
+                severity = "INFO"
+                alert_reason = "VEHICLE_DETECTED"
+            elif len(detected_objs) > 0:
+                is_alert = True
+                severity = "INFO"
+                alert_reason = f"TARGET_{detected_objs[0].upper()}"
+
+        # 4. Mode FORENSIC Strict : Seuls véhicules, personnes+objets ou foules alertent
+        elif trigger_mode == "FORENSIC" and not is_alert:
+            if len(vehicle_boxes) > 0:
+                is_alert = True
+                severity = "INFO"
+                alert_reason = "VEHICLE_DETECTED"
 
         # Gestion anti-flooding par caméra
         now = time.time()

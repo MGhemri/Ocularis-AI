@@ -251,6 +251,23 @@ HTML_TEMPLATE = """
         }
         .cam-metrics { font-size: 12px; color: #475569; font-weight: 600; display: flex; gap: 12px; }
         .cam-controls { display: flex; gap: 8px; align-items: center; }
+        .cam-targets-summary { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+        .target-chip {
+            display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 10px;
+            font-weight: 700; background: #e2e8f0; color: #334155; text-transform: uppercase;
+        }
+        .target-classes-grid {
+            display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; margin-bottom: 12px;
+        }
+        .class-pill {
+            display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px;
+            background: #ffffff; border: 1px solid #cbd5e1; border-radius: 20px;
+            font-size: 12px; font-weight: 600; color: #334155; cursor: pointer; user-select: none;
+            transition: all 0.15s ease;
+        }
+        .class-pill:hover { border-color: #0284c7; background: #f0f9ff; }
+        .class-pill input[type="checkbox"] { width: 15px; height: 15px; margin: 0; cursor: pointer; }
+        .class-pill.checked { background: #e0f2fe; border-color: #0284c7; color: #0369a1; }
 
         /* Configuration Caméras Table & Form */
         .config-container {
@@ -568,19 +585,54 @@ HTML_TEMPLATE = """
                         <button type="button" class="btn btn-outline" style="padding:4px 8px; font-size:11px;" onclick="applyPreset('axis')">RTSP Axis</button>
                     </div>
 
+                    <!-- Cibles à Détecter par l'IA -->
+                    <div style="margin-top:16px; margin-bottom:18px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; flex-wrap:wrap; gap:8px;">
+                            <label style="font-size:12px; font-weight:700; color:#475569; text-transform:uppercase; margin:0;">
+                                Cibles de Détection IA (Sélectionnez les objets et personnes à suivre)
+                            </label>
+                            <div style="font-size:11px; display:flex; gap:8px; flex-wrap:wrap;">
+                                <a href="javascript:void(0)" onclick="setTargetClassChecks('form', true)" style="color:#0284c7; text-decoration:none; font-weight:700;">Tout cocher</a>
+                                <span style="color:#cbd5e1;">|</span>
+                                <a href="javascript:void(0)" onclick="setTargetClassChecks('form', false)" style="color:#64748b; text-decoration:none;">Tout décocher</a>
+                                <span style="color:#cbd5e1;">|</span>
+                                <a href="javascript:void(0)" onclick="setTargetClassPreset('form', 'security')" style="color:#0284c7; text-decoration:none; font-weight:700;">Anti-Vol / Sacs & Tech</a>
+                                <span style="color:#cbd5e1;">|</span>
+                                <a href="javascript:void(0)" onclick="setTargetClassPreset('form', 'vehicles')" style="color:#0284c7; text-decoration:none; font-weight:700;">Véhicules & Parking</a>
+                            </div>
+                        </div>
+                        <div class="target-classes-grid" id="form-target-classes">
+                            <!-- Pills générés dynamiquement par JS -->
+                        </div>
+                    </div>
+
                     <div class="form-grid">
                         <div class="form-group">
+                            <label>Mode de Déclenchement d'Alerte</label>
+                            <select id="cam-trigger-mode">
+                                <option value="ANY_TARGET" selected>Détection Immédiate (Alerte dès qu'une cible cochée apparaît)</option>
+                                <option value="FORENSIC">Forensique Strict (Alerte uniquement si Personne+Objet ou Foule)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Sensibilité IA (Confiance) : <span id="cam-conf-label" style="color:#0284c7; font-weight:800;">35%</span></label>
+                            <div style="display:flex; align-items:center; gap:10px; margin-top:8px;">
+                                <input type="range" id="cam-conf" min="0.15" max="0.80" step="0.05" value="0.35" style="flex:1;" oninput="document.getElementById('cam-conf-label').textContent = Math.round(this.value * 100) + '%'">
+                            </div>
+                        </div>
+                        <div class="form-group">
                             <label>Fréquence d'analyse IA (FPS)</label>
-                            <input type="number" id="cam-fps" value="2.0" step="0.5" min="0.5" max="10.0">
+                            <input type="number" id="cam-fps" value="2.5" step="0.5" min="0.5" max="10.0">
                         </div>
                         <div class="form-group">
                             <label>Cooldown Anti-Flooding (sec)</label>
-                            <input type="number" id="cam-cooldown" value="3.5" step="0.5" min="1.0">
+                            <input type="number" id="cam-cooldown" value="2.5" step="0.5" min="0.5">
                         </div>
-                        <div class="form-group" style="display:flex; align-items:center; gap:10px; margin-top:22px;">
-                            <input type="checkbox" id="cam-enabled" checked style="width:20px; height:20px;">
-                            <label for="cam-enabled" style="margin:0; text-transform:none; font-size:13px; font-weight:600;">Activer le flux immédiatement</label>
-                        </div>
+                    </div>
+
+                    <div class="form-group" style="display:flex; align-items:center; gap:10px; margin-top:10px;">
+                        <input type="checkbox" id="cam-enabled" checked style="width:20px; height:20px;">
+                        <label for="cam-enabled" style="margin:0; text-transform:none; font-size:13px; font-weight:600;">Activer le flux immédiatement</label>
                     </div>
 
                     <div style="display:flex; gap:12px; align-items:center; margin-top:14px; flex-wrap:wrap;">
@@ -631,11 +683,189 @@ HTML_TEMPLATE = """
         </div>
     </div>
 
+    <!-- Classes Modal : Configuration Rapide des Cibles IA en Direct -->
+    <div id="classesModal" class="modal">
+        <div style="background:white; border-radius:14px; max-width:620px; width:92%; margin:60px auto; padding:24px; position:relative; box-shadow:0 20px 25px -5px rgba(0,0,0,0.3);">
+            <span class="modal-close" style="top:14px; right:18px; color:#64748b; font-size:26px; cursor:pointer;" onclick="closeClassesModal()">&times;</span>
+            <h3 style="font-size:17px; margin-bottom:4px; color:#0f172a;">Sélection des Cibles IA & Sensibilité</h3>
+            <p id="classesModalSub" style="font-size:12px; color:#64748b; margin-bottom:16px;">Sélectionnez les objets et entités que l'IA doit suivre et alerter.</p>
+            
+            <input type="hidden" id="modal-cam-id">
+            
+            <div style="margin-bottom:14px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; flex-wrap:wrap; gap:8px;">
+                    <label style="font-size:11px; font-weight:700; color:#475569; text-transform:uppercase;">Cibles Ciblées par l'IA</label>
+                    <div style="font-size:11px; display:flex; gap:8px;">
+                        <a href="javascript:void(0)" onclick="setTargetClassChecks('modal', true)" style="color:#0284c7; text-decoration:none; font-weight:700;">Tout cocher</a>
+                        <span style="color:#cbd5e1;">|</span>
+                        <a href="javascript:void(0)" onclick="setTargetClassChecks('modal', false)" style="color:#64748b; text-decoration:none;">Tout décocher</a>
+                        <span style="color:#cbd5e1;">|</span>
+                        <a href="javascript:void(0)" onclick="setTargetClassPreset('modal', 'security')" style="color:#0284c7; text-decoration:none; font-weight:700;">Anti-Vol / Tech</a>
+                        <span style="color:#cbd5e1;">|</span>
+                        <a href="javascript:void(0)" onclick="setTargetClassPreset('modal', 'vehicles')" style="color:#0284c7; text-decoration:none; font-weight:700;">Véhicules</a>
+                    </div>
+                </div>
+                <div class="target-classes-grid" id="modal-target-classes"></div>
+            </div>
+
+            <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap:12px; margin-bottom:12px;">
+                <div class="form-group">
+                    <label>Mode de Déclenchement</label>
+                    <select id="modal-trigger-mode">
+                        <option value="ANY_TARGET">Détection Immédiate (Présence simple)</option>
+                        <option value="FORENSIC">Forensique Strict (Personne + Objet)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Sensibilité IA : <span id="modal-conf-label" style="color:#0284c7; font-weight:800;">35%</span></label>
+                    <input type="range" id="modal-conf" min="0.15" max="0.80" step="0.05" value="0.35" style="margin-top:8px; width:100%;" oninput="document.getElementById('modal-conf-label').textContent = Math.round(this.value * 100) + '%'">
+                </div>
+            </div>
+
+            <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap:12px; margin-bottom:18px;">
+                <div class="form-group">
+                    <label>Fréquence IA (FPS)</label>
+                    <input type="number" id="modal-fps" value="2.5" step="0.5" min="0.5" max="10.0">
+                </div>
+                <div class="form-group">
+                    <label>Cooldown Anti-Flooding (s)</label>
+                    <input type="number" id="modal-cooldown" value="2.5" step="0.5" min="0.5">
+                </div>
+            </div>
+
+            <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:14px;">
+                <button type="button" class="btn btn-outline" onclick="closeClassesModal()">Annuler</button>
+                <button type="button" class="btn btn-primary" onclick="saveModalClasses()">Appliquer Immédiatement</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         let allEvents = [];
         let currentMaxId = 0;
         let globalAnnotatedMode = true;
         let configuredCameras = [];
+
+        const DETECTION_CATALOG = [
+            { id: 'person', label: 'Personne (Humain)', default: true },
+            { id: 'backpack', label: 'Sac à dos', default: true },
+            { id: 'handbag', label: 'Sac à main', default: true },
+            { id: 'suitcase', label: 'Valise', default: true },
+            { id: 'cell phone', label: 'Téléphone portable', default: true },
+            { id: 'laptop', label: 'PC Portable', default: true },
+            { id: 'tv', label: 'TV / Écran', default: true },
+            { id: 'car', label: 'Voiture', default: true },
+            { id: 'motorcycle', label: 'Moto', default: true },
+            { id: 'bicycle', label: 'Vélo', default: true },
+            { id: 'truck', label: 'Camion', default: false },
+            { id: 'bus', label: 'Bus', default: false },
+            { id: 'dog', label: 'Chien', default: false },
+            { id: 'cat', label: 'Chat', default: false }
+        ];
+
+        function renderTargetClassPills(prefix, selectedList = null) {
+            const container = document.getElementById(`${prefix}-target-classes`);
+            if (!container) return;
+            const isSelected = (id, def) => selectedList ? selectedList.includes(id) : def;
+
+            container.innerHTML = DETECTION_CATALOG.map(item => {
+                const checked = isSelected(item.id, item.default);
+                const safeId = item.id.replace(/ /g, '_');
+                return `
+                    <label class="class-pill ${checked ? 'checked' : ''}" id="pill-${prefix}-${safeId}">
+                        <input type="checkbox" name="${prefix}-target-class" value="${item.id}" ${checked ? 'checked' : ''} onchange="togglePillClass('${prefix}', '${safeId}', this.checked)">
+                        ${escapeHtml(item.label)}
+                    </label>
+                `;
+            }).join('');
+        }
+
+        function togglePillClass(prefix, safeId, isChecked) {
+            const pill = document.getElementById(`pill-${prefix}-${safeId}`);
+            if (pill) {
+                if (isChecked) pill.classList.add('checked');
+                else pill.classList.remove('checked');
+            }
+        }
+
+        function getSelectedTargetClasses(prefix) {
+            const inputs = document.querySelectorAll(`input[name="${prefix}-target-class"]:checked`);
+            return Array.from(inputs).map(i => i.value);
+        }
+
+        function setTargetClassChecks(prefix, checkedState) {
+            document.querySelectorAll(`input[name="${prefix}-target-class"]`).forEach(input => {
+                input.checked = checkedState;
+                togglePillClass(prefix, input.value.replace(/ /g, '_'), checkedState);
+            });
+        }
+
+        function setTargetClassPreset(prefix, presetType) {
+            document.querySelectorAll(`input[name="${prefix}-target-class"]`).forEach(input => {
+                let shouldCheck = false;
+                if (presetType === 'security') {
+                    shouldCheck = ['person', 'backpack', 'handbag', 'suitcase', 'cell phone', 'laptop', 'tv'].includes(input.value);
+                } else if (presetType === 'vehicles') {
+                    shouldCheck = ['car', 'motorcycle', 'bicycle', 'truck', 'bus', 'person'].includes(input.value);
+                }
+                input.checked = shouldCheck;
+                togglePillClass(prefix, input.value.replace(/ /g, '_'), shouldCheck);
+            });
+        }
+
+        function openClassesModal(camId) {
+            const cam = configuredCameras.find(c => c.id === camId);
+            if (!cam) return;
+            document.getElementById('modal-cam-id').value = camId;
+            document.getElementById('classesModalSub').textContent = `Configuration des cibles IA pour : ${cam.name} (${cam.id})`;
+            document.getElementById('modal-trigger-mode').value = cam.trigger_mode || 'ANY_TARGET';
+            const confVal = cam.conf_threshold || 0.35;
+            document.getElementById('modal-conf').value = confVal;
+            document.getElementById('modal-conf-label').textContent = Math.round(confVal * 100) + '%';
+            document.getElementById('modal-fps').value = cam.fps_analyze || 2.5;
+            document.getElementById('modal-cooldown').value = cam.cooldown_sec || 2.5;
+            renderTargetClassPills('modal', cam.target_classes || []);
+            document.getElementById('classesModal').classList.add('active');
+        }
+
+        function closeClassesModal() {
+            document.getElementById('classesModal')?.classList.remove('active');
+        }
+
+        function saveModalClasses() {
+            const camId = document.getElementById('modal-cam-id').value;
+            const selected = getSelectedTargetClasses('modal');
+            if (selected.length === 0) {
+                alert("Veuillez sélectionner au moins une cible de détection.");
+                return;
+            }
+            const triggerMode = document.getElementById('modal-trigger-mode').value;
+            const confThreshold = parseFloat(document.getElementById('modal-conf').value) || 0.35;
+            const fpsAnalyze = parseFloat(document.getElementById('modal-fps').value) || 2.5;
+            const cooldownSec = parseFloat(document.getElementById('modal-cooldown').value) || 2.5;
+
+            fetch(`/api/cameras/${camId}/classes`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    target_classes: selected,
+                    trigger_mode: triggerMode,
+                    conf_threshold: confThreshold,
+                    fps_analyze: fpsAnalyze,
+                    cooldown_sec: cooldownSec
+                })
+            })
+            .then(r => r.json())
+            .then(res => {
+                if (res.error) {
+                    alert("Erreur: " + res.error);
+                } else {
+                    closeClassesModal();
+                    loadCameras();
+                }
+            })
+            .catch(err => alert("Erreur d'application des filtres IA: " + err));
+        }
 
         function escapeHtml(str) {
             if (!str) return '';
@@ -881,6 +1111,20 @@ HTML_TEMPLATE = """
                         <div class="cam-stream-wrap">
                             <img src="${streamUrl}" alt="${escapeHtml(c.name)}">
                         </div>
+                        <div style="padding:8px 18px 4px 18px; font-size:11px; background:#ffffff; border-top:1px solid #f1f5f9;">
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                                <span style="font-weight:700; font-size:10px; text-transform:uppercase; color:#64748b;">
+                                    Cibles IA (${(c.target_classes || []).length}) • Mode: ${c.trigger_mode === 'FORENSIC' ? 'Forensique' : 'Immédiat'}
+                                </span>
+                                <span style="font-size:10px; color:#0284c7; font-weight:700;">
+                                    Seuil: ${Math.round((c.conf_threshold || 0.35) * 100)}%
+                                </span>
+                            </div>
+                            <div class="cam-targets-summary">
+                                ${(c.target_classes || []).slice(0, 5).map(t => `<span class="target-chip">${escapeHtml(t)}</span>`).join('')}
+                                ${(c.target_classes || []).length > 5 ? `<span class="target-chip">+${c.target_classes.length - 5}</span>` : ''}
+                            </div>
+                        </div>
                         <div class="cam-card-footer">
                             <div class="cam-metrics">
                                 <span>${c.fps_actual} FPS</span>
@@ -888,7 +1132,10 @@ HTML_TEMPLATE = """
                                 <span>${c.total_events} alertes</span>
                             </div>
                             <div class="cam-controls">
-                                <button class="btn btn-outline" style="padding:4px 10px; font-size:11px;" onclick="toggleCamera('${c.id}')">
+                                <button class="btn btn-outline" style="padding:4px 9px; font-size:11px;" onclick="openClassesModal('${c.id}')">
+                                    Cibles IA
+                                </button>
+                                <button class="btn btn-outline" style="padding:4px 9px; font-size:11px;" onclick="toggleCamera('${c.id}')">
                                     ${c.enabled ? 'Désactiver' : 'Activer'}
                                 </button>
                             </div>
@@ -977,9 +1224,12 @@ HTML_TEMPLATE = """
             const camId = document.getElementById('cam-id').value.trim();
             const camName = document.getElementById('cam-name').value.trim();
             const camUrl = document.getElementById('cam-url').value.trim();
-            const camFps = parseFloat(document.getElementById('cam-fps').value) || 2.0;
-            const camCooldown = parseFloat(document.getElementById('cam-cooldown').value) || 3.5;
+            const camFps = parseFloat(document.getElementById('cam-fps').value) || 2.5;
+            const camCooldown = parseFloat(document.getElementById('cam-cooldown').value) || 2.5;
             const camEnabled = document.getElementById('cam-enabled').checked;
+            const camTriggerMode = document.getElementById('cam-trigger-mode')?.value || 'ANY_TARGET';
+            const camConf = parseFloat(document.getElementById('cam-conf')?.value) || 0.35;
+            const targetClasses = getSelectedTargetClasses('form');
 
             if (!camId || !camName || !camUrl) {
                 alert("L'ID, le nom et l'URL sont obligatoires.");
@@ -995,7 +1245,10 @@ HTML_TEMPLATE = """
                     url: camUrl,
                     fps_analyze: camFps,
                     cooldown_sec: camCooldown,
-                    enabled: camEnabled
+                    enabled: camEnabled,
+                    conf_threshold: camConf,
+                    trigger_mode: camTriggerMode,
+                    target_classes: targetClasses
                 })
             })
             .then(r => r.json())
@@ -1111,12 +1364,18 @@ HTML_TEMPLATE = """
         });
 
         // Chargement initial et rafraîchissement périodique
+        renderTargetClassPills('form');
         loadStats();
         loadEvents();
         loadCameras();
         setInterval(loadStats, 5000);
         setInterval(loadEvents, 3000);
         setInterval(loadCameras, 8000);
+
+        window.addEventListener('click', (e) => {
+            const cm = document.getElementById('classesModal');
+            if (e.target === cm) closeClassesModal();
+        });
     </script>
 </body>
 </html>
@@ -1466,6 +1725,32 @@ def delete_camera_route(camera_id):
 
     res = rtsp_manager.delete_camera(camera_id)
     return jsonify({'ok': res, 'id': camera_id})
+
+
+@app.route('/api/cameras/<camera_id>/classes', methods=['POST'])
+def update_camera_classes_route(camera_id):
+    """Met à jour à chaud les cibles de détection, seuils et modes d'une caméra."""
+    if rtsp_manager is None:
+        return jsonify({'error': "Gestionnaire RTSP non disponible."}), 503
+
+    data = request.get_json(silent=True) or {}
+    try:
+        stream = rtsp_manager.update_camera_classes(camera_id, data)
+        return jsonify({'ok': True, 'camera': stream.to_dict(mask_secret=True)})
+    except KeyError:
+        return jsonify({'error': f"Caméra '{camera_id}' introuvable."}), 404
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+
+@app.route('/api/detection-catalog')
+def get_detection_catalog_route():
+    """Retourne le catalogue des objets et entités détectables par YOLO."""
+    from rtsp_manager import SUPPORTED_DETECTION_CLASSES, DEFAULT_TARGET_CLASSES
+    return jsonify({
+        'supported_classes': list(SUPPORTED_DETECTION_CLASSES.keys()),
+        'default_classes': DEFAULT_TARGET_CLASSES
+    })
 
 
 @app.route('/api/cameras/test', methods=['POST'])

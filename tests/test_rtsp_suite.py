@@ -9,6 +9,7 @@ import sqlite3
 import tempfile
 from pathlib import Path
 
+from unittest.mock import patch
 from rtsp_manager import (
     mask_rtsp_password,
     unmask_rtsp_password,
@@ -105,22 +106,27 @@ class TestOcularisRTSP(unittest.TestCase):
         res_del = self.client.delete('/api/cameras/cam_api_test')
         self.assertEqual(res_del.status_code, 200)
 
-    def test_05_api_test_camera(self):
+    @patch('web_interface.test_rtsp_connection')
+    def test_05_api_test_camera(self, mock_test_conn):
         # Test sans URL
         res_empty = self.client.post('/api/cameras/test', json={'url': ''})
         self.assertEqual(res_empty.status_code, 400)
 
         # Test avec fausse URL (doit répondre proprement sans crasher)
+        mock_test_conn.return_value = {'success': False, 'error': 'Connection timeout'}
         res_fake = self.client.post('/api/cameras/test', json={'url': 'rtsp://127.0.0.1:9999/fake'})
         self.assertEqual(res_fake.status_code, 200)
         data = res_fake.get_json()
         self.assertIn('success', data)
+        self.assertFalse(data['success'])
 
         # Test avec webcam locale '0'
+        mock_test_conn.return_value = {'success': True, 'width': 640, 'height': 480, 'fps': 30.0}
         res_wc = self.client.post('/api/cameras/test', json={'url': '0'})
         self.assertEqual(res_wc.status_code, 200)
         data_wc = res_wc.get_json()
         self.assertIn('success', data_wc)
+        self.assertTrue(data_wc['success'])
 
     def test_06_forensic_pages(self):
         # Dashboard principal
@@ -162,6 +168,41 @@ class TestOcularisRTSP(unittest.TestCase):
         is_wc_rtsp, val_rtsp = is_webcam_source("rtsp://admin:pass@192.168.1.100:554/live")
         self.assertFalse(is_wc_rtsp)
         self.assertEqual(val_rtsp, "rtsp://admin:pass@192.168.1.100:554/live")
+
+    def test_08_dynamic_classes_and_detection_catalog(self):
+        # GET /api/detection-catalog
+        res_cat = self.client.get('/api/detection-catalog')
+        self.assertEqual(res_cat.status_code, 200)
+        cat_data = res_cat.get_json()
+        self.assertIn('supported_classes', cat_data)
+        self.assertIn('person', cat_data['supported_classes'])
+        self.assertIn('cell phone', cat_data['supported_classes'])
+
+        # POST /api/cameras pour créer une caméra test avec classes
+        self.client.post('/api/cameras', json={
+            'id': 'cam_classes_test',
+            'name': 'Camera Classes Test',
+            'url': '0',
+            'enabled': False,
+            'target_classes': ['person', 'cell phone'],
+            'trigger_mode': 'ANY_TARGET',
+            'conf_threshold': 0.30
+        })
+
+        # POST /api/cameras/cam_classes_test/classes
+        res_classes = self.client.post('/api/cameras/cam_classes_test/classes', json={
+            'target_classes': ['car', 'motorcycle'],
+            'trigger_mode': 'FORENSIC',
+            'conf_threshold': 0.45
+        })
+        self.assertEqual(res_classes.status_code, 200)
+        c_data = res_classes.get_json()
+        self.assertEqual(c_data['camera']['target_classes'], ['car', 'motorcycle'])
+        self.assertEqual(c_data['camera']['trigger_mode'], 'FORENSIC')
+        self.assertEqual(c_data['camera']['conf_threshold'], 0.45)
+
+        # Nettoyage
+        self.client.delete('/api/cameras/cam_classes_test')
 
 
 if __name__ == '__main__':

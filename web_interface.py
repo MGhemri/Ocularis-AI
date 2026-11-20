@@ -2,7 +2,7 @@
 OCULARIS AI - INTERFACE WEB FORENSIQUE & MONITORING RTSP (FRONTEND)
 Version 1.2.0 - Grade Industriel - Dashboard Enquêteur, Flux En Direct & Rapports Officiels
 Système Universel d'Analyse Forensique Vidéo & Audit CCTV
-Auteur : Ghemri M (contact@connect-gm.com / +213 549 777 366)
+Développeur : Ghemri M (contact@connect-gm.com / +213 549 777 366)
 """
 
 import os
@@ -1127,7 +1127,7 @@ REPORT_TEMPLATE = """
         </div>
         <div style="text-align: right; font-size: 12px; color: #64748b;">
             Édité le : <strong>{{ now }}</strong><br>
-            Auteur / Enquêteur : <strong>Ghemri M</strong>
+            Développeur : <strong>Ghemri M</strong>
         </div>
     </div>
 

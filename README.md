@@ -3,7 +3,7 @@
 > **Version :** 1.2.0 (Stable / RTSP & Live IP Camera Support)  
 > **Statut :** Production / Grade Industriel  
 > **Contexte :** Système Universel d'Analyse Vidéo Forensique & Surveillance Temps Réel CCTV  
-> **Auteur :** Ghemri M (`contact@connect-gm.com` / `+213 549 777 366`)  
+> **Développeur :** Ghemri M (`contact@connect-gm.com` / `+213 549 777 366`)  
 
 ---
 
@@ -136,7 +136,7 @@ python ai_engine.py --batch
 
 ## 7. Contacts & Mention Legale
 
-*   **Auteur & Responsable Systeme :** Ghemri M (`GHEMRI M`)
+*   **Développeur :** Ghemri M (`GHEMRI M`)
 *   **Courriel Professionnel :** `contact@connect-gm.com`
 *   **Telephone :** `+213 549 777 366`
 *   **Depot GitHub Officiel :** [https://github.com/MGhemri/Ocularis-AI](https://github.com/MGhemri/Ocularis-AI)

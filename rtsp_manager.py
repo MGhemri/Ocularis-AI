@@ -3,7 +3,7 @@ OCULARIS AI - GESTIONNAIRE DE FLUX RTSP & CAMÉRAS IP EN DIRECT
 Version 1.2.0 - Grade Industriel - Surveillance Temps Réel Multi-Caméras
 Ingestion Bufferless Zero-Latence, Auto-Reconnexion, Inférence YOLOv8 + ByteTrack
 Système Universel d'Analyse Forensique Vidéo & Audit CCTV
-Auteur : Ghemri M (contact@connect-gm.com / +213 549 777 366)
+Développeur : Ghemri M (contact@connect-gm.com / +213 549 777 366)
 """
 
 import os

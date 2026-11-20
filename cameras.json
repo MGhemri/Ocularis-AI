@@ -69,11 +69,11 @@
     "id": "webcam_pc",
     "name": "Webcam Intégrée PC",
     "url": "0",
-    "enabled": true,
+    "enabled": false,
     "fps_analyze": 2.0,
     "cooldown_sec": 3.5,
     "conf_threshold": 0.35,
-    "trigger_mode": "ANY_TARGET",
+    "trigger_mode": "FORENSIC",
     "target_classes": [
       "person",
       "backpack",

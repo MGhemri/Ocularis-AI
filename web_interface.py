@@ -483,6 +483,7 @@ HTML_TEMPLATE = """
                         <option value="handbag">Sac à main</option>
                         <option value="tv">Télévision / Écran</option>
                         <option value="laptop">PC Portable</option>
+                        <option value="cell phone">Téléphone portable</option>
                         <option value="car">Voiture</option>
                         <option value="truck">Camion</option>
                         <option value="bus">Bus</option>
@@ -873,6 +874,7 @@ HTML_TEMPLATE = """
                             <div class="cam-card-title">
                                 <span class="status-dot" style="background:${c.status === 'LIVE' ? '#16a34a' : '#d97706'}"></span>
                                 ${escapeHtml(c.name)} <span style="font-size:12px; opacity:0.8;">(${escapeHtml(c.id)})</span>
+                                ${c.enabled && c.status === 'LIVE' ? '<span style="font-size:10px; font-weight:700; background:#0284c7; color:white; padding:2px 6px; border-radius:4px; margin-left:6px;">IA ACTIVE</span>' : ''}
                             </div>
                             <span class="cam-badge-status ${c.status}">${c.status}</span>
                         </div>
@@ -897,7 +899,11 @@ HTML_TEMPLATE = """
         }
 
         function toggleCamera(camId) {
-            fetch(`/api/cameras/${camId}/toggle`, { method: 'POST' })
+            fetch(`/api/cameras/${camId}/toggle`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({})
+            })
                 .then(r => r.json())
                 .then(() => loadCameras())
                 .catch(err => alert("Erreur: " + err));
@@ -1004,11 +1010,29 @@ HTML_TEMPLATE = """
             .catch(err => alert("Erreur d'enregistrement : " + err));
         });
 
+        function updateToggleAnnotButton() {
+            const btn = document.getElementById('btn-toggle-all-annot');
+            if (!btn) return;
+            if (globalAnnotatedMode) {
+                btn.innerHTML = 'Mode IA : ACTIF (Cadres & Détections)';
+                btn.style.background = '#0284c7';
+                btn.style.color = '#ffffff';
+                btn.style.borderColor = '#0284c7';
+            } else {
+                btn.innerHTML = 'Mode IA : DÉSACTIVÉ (Flux Brut)';
+                btn.style.background = '#f8fafc';
+                btn.style.color = '#64748b';
+                btn.style.borderColor = '#cbd5e1';
+            }
+        }
+
         // Bascule Mode IA / Mode Brut
         document.getElementById('btn-toggle-all-annot')?.addEventListener('click', () => {
             globalAnnotatedMode = !globalAnnotatedMode;
+            updateToggleAnnotButton();
             renderLiveCameras();
         });
+        updateToggleAnnotButton();
 
         // --- GESTION DU MODAL IMAGE & QUALIFICATION ---
         const modal = document.getElementById('imageModal');
@@ -1330,7 +1354,7 @@ def get_events():
 def qualify_event(event_id):
     """Enregistre la décision de l'enquêteur (RETENU, FAUX_POSITIF) et les notes associées."""
     ensure_db()
-    data = request.get_json() or {}
+    data = request.get_json(silent=True) or {}
     qualification = data.get('qualification')
     notes = data.get('notes')
 
@@ -1411,7 +1435,7 @@ def handle_cameras():
         return jsonify({'error': "Gestionnaire RTSP non disponible."}), 503
 
     if request.method == 'POST':
-        data = request.get_json() or {}
+        data = request.get_json(silent=True) or {}
         try:
             stream = rtsp_manager.add_or_update_camera(data)
             return jsonify({'ok': True, 'camera': stream.to_dict(mask_secret=True)})
@@ -1428,7 +1452,7 @@ def toggle_camera_route(camera_id):
     if rtsp_manager is None:
         return jsonify({'error': "Gestionnaire RTSP non disponible."}), 503
 
-    data = request.get_json() or {}
+    data = request.get_json(silent=True) or {}
     enabled = data.get('enabled')
     res = rtsp_manager.toggle_camera(camera_id, enabled)
     return jsonify({'ok': True, 'id': camera_id, 'enabled': res})
@@ -1447,7 +1471,7 @@ def delete_camera_route(camera_id):
 @app.route('/api/cameras/test', methods=['POST'])
 def test_camera_route():
     """Teste la connectivité d'un flux RTSP / IP à la demande."""
-    data = request.get_json() or {}
+    data = request.get_json(silent=True) or {}
     url = data.get('url', '').strip()
     if not url:
         return jsonify({'success': False, 'error': "L'URL est requise."}), 400

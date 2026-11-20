@@ -43,8 +43,8 @@ MODEL_SIZE = os.getenv("OCULARIS_MODEL_SIZE", os.getenv("GM_MODEL_SIZE", "yolov8
 # Classes COCO ciblées pour l'IA
 CLASS_PERSON = 0
 CLASSES_VEHICLES = {1, 2, 3, 5, 7}
-CLASSES_SUSPECT_OBJECTS = {24, 26, 28, 62, 63}
-TARGET_CLASSES = [0, 1, 2, 3, 5, 7, 24, 26, 28, 62, 63]
+CLASSES_SUSPECT_OBJECTS = {24, 26, 28, 62, 63, 67}
+TARGET_CLASSES = [0, 1, 2, 3, 5, 7, 24, 26, 28, 62, 63, 67]
 
 # Seuils par défaut
 CONF_THRESHOLD = float(os.getenv("OCULARIS_CONF_THRESHOLD", os.getenv("GM_CONF_THRESHOLD", "0.40")))
